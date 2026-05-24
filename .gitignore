@@ -1,69 +1,71 @@
-# Prerequisites
+# PROS build output
+bin/
+.d/
 *.d
+*.bin
+*.elf
+temp.log
+temp.errors
 
-# Compiled Object files
-*.slo
-*.lo
+# Compiled objects
 *.o
 *.obj
+*.slo
+*.lo
 
-# Precompiled Headers
-*.gch
-*.pch
-
-# Linker files
-*.ilk
-
-# Debugger Files
-*.pdb
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-*.so.*
-
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
+# Libraries
 *.a
 *.lib
+*.lai
+*.la
+*.so
+*.so.*
+*.dylib
+*.dll
 
 # Executables
 *.exe
 *.out
 *.app
 
+# Precompiled headers
+*.gch
+*.pch
+
+# Linker / debugger
+*.ilk
+*.pdb
+*.dwo
+
+# Fortran modules
+*.mod
+*.smod
+
 # Build directories
 build/
 Build/
 build-*/
 
-# CMake generated files
+# CMake (if used locally)
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
-Makefile
 install_manifest.txt
 compile_commands.json
 
-# Temporary files
+# IDE / editor
+.vscode/
+.cache/
+
+# Dependencies
+vcpkg_installed/
+
+# Temporary / swap
 *.tmp
 *.log
 *.bak
 *.swp
+*.ini
 
-# vcpkg
-vcpkg_installed/
-
-# debug information files
-*.dwo
-
-# test output & cache
+# Test output
 Testing/
-.cache/
