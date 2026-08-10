@@ -26,7 +26,7 @@ else
 IS_LIBRARY:=1
 endif
 LIBNAME:=autumn
-VERSION:=0.1.0
+VERSION:=0.1.0-alpha
 
 ifeq ($(IS_LIBRARY),0)
 EXCLUDE_SRCDIRS+=src/autumn
