@@ -20,7 +20,18 @@ Autumn is a PROS C++ template for VEX V5 autonomous programming. It combines com
 
 ## Quick start
 
-1. Install [PROS CLI](https://pros.cs.purdue.edu/v5/getting-started/index.html) and apply the autumn template (`pros conduct apply autumn` when using a remote depot).
+1. Install [PROS CLI](https://pros.cs.purdue.edu/v5/getting-started/index.html), add the Autumn depot, and apply the template:
+
+   ```bash
+   # Stable releases only
+   pros conduct add-depot Autumn https://raw.githubusercontent.com/AutumnLib/autumn/depot/stable.json
+   # Or, to track prereleases/alphas instead:
+   pros conduct add-depot Autumn https://raw.githubusercontent.com/AutumnLib/autumn/depot/beta.json
+
+   pros conduct apply autumn
+   ```
+
+   Until the first non-prerelease version ships, `stable.json` is empty — use the `beta.json` depot to try alpha/beta builds.
 2. Configure hardware in [`templates/config.hpp`](templates/config.hpp).
 3. Define auton routes in [`templates/autonomous.hpp`](templates/autonomous.hpp) via `getRoutes()` and driver code in [`templates/driver.hpp`](templates/driver.hpp).
 4. Build the library and project:
@@ -40,7 +51,6 @@ src/autumn/         Library implementations (compiled into libautumn.a)
 templates/          User config, auton, driver
 static/             Pure pursuit path files
 firmware/           libautumn.a + hot-cold-asset.mk
-depot/              Remote Conductor depot manifest
 docs/               Documentation (ReadTheDocs)
 ```
 
@@ -66,7 +76,7 @@ chassis_.follow(example_txt, 15, 6000);
 
 ## Documentation
 
-See [`docs/index.md`](docs/index.md). Remote depot manifest is hosted on the `depot` branch (not yet published).
+See [`docs/index.md`](docs/index.md). Remote depot manifest (`stable.json`/`beta.json`) is hosted on the `depot` branch, populated automatically on each release.
 
 ## License
 

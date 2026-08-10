@@ -55,23 +55,25 @@ Declare with `ASSET(my_path_txt);` and pass to `chassis.follow(my_path_txt, ...)
 
 ## PROS Conductor
 
-**Maintainer release:**
+**Maintainer release:** dispatch the `Create Release` GitHub Actions workflow (`.github/workflows/release.yml`)
+with a `version` (and `prerelease` flag if it's an alpha/beta). It builds `libautumn.a`, packages the template
+via `make template-release` (`pros conduct create-template`), publishes a GitHub Release with the zip attached,
+and dispatches `.github/workflows/depot.yml` to refresh `stable.json`/`beta.json` on the `depot` branch.
+
+Locally, use `make template` (not `-release`) when developing the library in this monorepo — both build the
+same way (`IS_LIBRARY=1`); `template-release` just also bumps `VERSION` and produces the distributable zip.
+
+**Teams (remote depot):**
 
 ```bash
-make libautumn
-make template-release   # IS_LIBRARY=0, links prebuilt libautumn.a (team-facing zip)
-pros conduct upload autumn@0.1.0
-```
+pros conduct add-depot Autumn https://raw.githubusercontent.com/AutumnLib/autumn/depot/stable.json
+# or .../depot/beta.json to track prereleases
 
-Use `make template` (without `-release`) when developing the library in this monorepo (`IS_LIBRARY=1`).
-
-**Teams (remote depot):** add `depot/autumn.json` to `conductor.pros`, then:
-
-```bash
 pros conduct apply autumn
 pros conduct upgrade autumn
 ```
 
 User files (`templates/`, `src/main.cpp`, `static/`) are never overwritten on upgrade. System files (`include/autumn/`, `firmware/libautumn.a`) are upgraded.
 
-The remote depot manifest lives on the `depot` branch (not yet published) rather than in this branch's `depot/` folder.
+The remote depot manifest (`stable.json`/`beta.json`) lives on the `depot` branch, regenerated automatically
+from GitHub Releases by `depot.yml` — `stable.json` stays empty until the first non-prerelease version ships.
