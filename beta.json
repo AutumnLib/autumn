@@ -1,0 +1,32 @@
+[
+  {
+    "metadata": {
+      "location": "https://github.com/AutumnLib/autumn/releases/download/v0.0.3-test/autumn%400.0.3-test.zip"
+    },
+    "name": "autumn",
+    "py/object": "pros.conductor.templates.base_template.BaseTemplate",
+    "supported_kernels": "^4.2.2",
+    "target": "v5",
+    "version": "0.0.3-test"
+  },
+  {
+    "metadata": {
+      "location": "https://github.com/AutumnLib/autumn/releases/download/v0.0.2-test/autumn%400.0.2-test.zip"
+    },
+    "name": "autumn",
+    "py/object": "pros.conductor.templates.base_template.BaseTemplate",
+    "supported_kernels": "^4.2.2",
+    "target": "v5",
+    "version": "0.0.2-test"
+  },
+  {
+    "metadata": {
+      "location": "https://github.com/AutumnLib/autumn/releases/download/v0.0.1-test/autumn%400.0.1-test.zip"
+    },
+    "name": "autumn",
+    "py/object": "pros.conductor.templates.base_template.BaseTemplate",
+    "supported_kernels": "^4.2.2",
+    "target": "v5",
+    "version": "0.0.1-test"
+  }
+]
