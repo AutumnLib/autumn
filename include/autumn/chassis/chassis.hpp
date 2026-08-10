@@ -17,6 +17,8 @@
 
 #include <cstdint>
 #include <functional>
+#include <stdexcept>
+#include <string>
 
 namespace autumn {
 
@@ -65,6 +67,22 @@ public:
         }
 
         Chassis build() const {
+            std::string missing;
+            if (context_ == nullptr) {
+                missing += " context";
+            }
+            if (odometry_ == nullptr) {
+                missing += " odometry";
+            }
+            if (left_ == nullptr) {
+                missing += " leftMotors";
+            }
+            if (right_ == nullptr) {
+                missing += " rightMotors";
+            }
+            if (!missing.empty()) {
+                throw std::logic_error("Chassis::Builder::build(): missing required setter(s):" + missing);
+            }
             return Chassis(*context_, *odometry_, *left_, *right_, throttleCurve_, steerCurve_);
         }
 

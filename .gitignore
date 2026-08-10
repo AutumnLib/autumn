@@ -1,4 +1,4 @@
-# PROS build output
+# PROS
 bin/
 .d/
 *.d
@@ -7,7 +7,7 @@ bin/
 temp.log
 temp.errors
 
-# Compiled objects
+# Objects
 *.o
 *.obj
 *.slo
@@ -32,43 +32,47 @@ temp.errors
 *.gch
 *.pch
 
-# Linker / debugger
+# Linker
 *.ilk
 *.pdb
 *.dwo
 
-# Fortran modules
+# Fortran
 *.mod
 *.smod
 
-# Build directories
+# Build
 build/
 Build/
 build-*/
 
-# CMake (if used locally)
+# CMake
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
 install_manifest.txt
 compile_commands.json
 
-# IDE / editor
+# IDE
 .vscode/
 .cache/
 
 # Dependencies
 vcpkg_installed/
 
-# Temporary / swap
+# Temp
 *.tmp
 *.log
 *.bak
 *.swp
 *.ini
 
-# Test output
+# Tests
 Testing/
 
-# Local architecture notes (not published)
+# Architecture Memo
 ARCHITECTURE.md
+
+# Misc
+.githooks/
+scripts/
