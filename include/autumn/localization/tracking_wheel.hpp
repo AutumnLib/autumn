@@ -17,7 +17,7 @@ public:
     TrackingWheel(hardware::Encoder* encoder, Length wheelDiameter, Length offsetFromCenter);
 
     // Adapter ctors: wrap a raw pros::Rotation in an owned V5RotationEncoder so
-    // existing team configs keep compiling.
+    // existing configs keep compiling.
     TrackingWheel(pros::Rotation* encoder, Length wheelDiameter, Length offsetFromCenter);
     TrackingWheel(pros::Rotation* encoder, double wheelDiameterIn, double offsetFromCenterIn)
         : TrackingWheel(encoder, inches(wheelDiameterIn), inches(offsetFromCenterIn)) {}

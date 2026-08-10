@@ -8,9 +8,7 @@
 
 namespace autumn {
 
-// Composable controller interface (LemLib abstract-controllers pattern):
-// (1) accept an input (current state / reference / error), and
-// (2) produce an output that feeds the next stage of the movement pipeline.
+// Composable controller interface (LemLib abstract-controllers pattern).
 template <typename In, typename Out>
 class Controller {
 public:
@@ -21,8 +19,6 @@ public:
 
 // Most drive-side stages map a scalar error/setpoint to a scalar command.
 using ScalarController = Controller<double, double>;
-
-// --- Thin adapters over the existing primitives (math unchanged) ---
 
 class PidController : public ScalarController {
 public:
@@ -35,7 +31,6 @@ private:
     PID pid_;
 };
 
-// Input = setpoint velocity, output = feedforward command.
 class FeedforwardController : public ScalarController {
 public:
     explicit FeedforwardController(Feedforward ff) : ff_(ff) {}
@@ -46,7 +41,6 @@ private:
     Feedforward ff_;
 };
 
-// Rate-limits whatever scalar target it is given.
 class SlewController : public ScalarController {
 public:
     explicit SlewController(double maxDeltaPerStep) : limiter_(maxDeltaPerStep) {}
@@ -82,8 +76,6 @@ private:
     SlewRateLimiter limiter_;
     double current_ = 0.0;
 };
-
-// --- Fusions ---
 
 // Output of each stage feeds the next (e.g. shape -> slew). LemLib
 // ChainedFusionController analogue for scalar stages.
