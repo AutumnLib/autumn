@@ -1,4 +1,4 @@
-name: Cut Release
+name: Create Release
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ on:
         description: "Version to release, e.g. 0.2.0 (no leading v)"
         required: true
       prerelease:
-        description: "Mark as a pre-release (routes to beta.json instead of stable.json)"
+        description: "Mark as a pre-release (route to beta.json)"
         type: boolean
         default: false
 
