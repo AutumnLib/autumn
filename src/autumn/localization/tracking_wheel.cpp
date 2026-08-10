@@ -4,10 +4,26 @@
 
 namespace autumn {
 
-TrackingWheel::TrackingWheel(pros::Rotation* encoder, Length wheelDiameter, Length offsetFromCenter)
-    : encoder_(encoder), wheelDiameter_(wheelDiameter), offset_(offsetFromCenter) {}
+namespace {
+// Non-owning shared_ptr (no-op deleter) for externally owned encoders.
+std::shared_ptr<hardware::Encoder> nonOwning(hardware::Encoder* encoder) {
+    return std::shared_ptr<hardware::Encoder>(encoder, [](hardware::Encoder*) {});
+}
+} // namespace
 
-void TrackingWheel::setEncoder(pros::Rotation* encoder) { encoder_ = encoder; }
+TrackingWheel::TrackingWheel(hardware::Encoder* encoder, Length wheelDiameter, Length offsetFromCenter)
+    : encoder_(nonOwning(encoder)), wheelDiameter_(wheelDiameter), offset_(offsetFromCenter) {}
+
+TrackingWheel::TrackingWheel(pros::Rotation* encoder, Length wheelDiameter, Length offsetFromCenter)
+    : encoder_(std::make_shared<hardware::V5RotationEncoder>(encoder)),
+      wheelDiameter_(wheelDiameter),
+      offset_(offsetFromCenter) {}
+
+void TrackingWheel::setEncoder(hardware::Encoder* encoder) { encoder_ = nonOwning(encoder); }
+
+void TrackingWheel::setEncoder(pros::Rotation* encoder) {
+    encoder_ = std::make_shared<hardware::V5RotationEncoder>(encoder);
+}
 
 void TrackingWheel::setWheelDiameter(Length diameter) { wheelDiameter_ = diameter; }
 
@@ -17,8 +33,9 @@ Length TrackingWheel::readDistance() const {
     if (encoder_ == nullptr) {
         return 0_in;
     }
-    const double rotations = encoder_->get_position() / 36000.0;
-    return inches(rotations * M_PI * to_inches(wheelDiameter_));
+    // rotations = angle / 2pi; distance = rotations * pi * diameter = angle * diameter / 2.
+    const double radiansMeasured = to_radians(encoder_->getAngle());
+    return inches(radiansMeasured * to_inches(wheelDiameter_) / 2.0);
 }
 
 Length TrackingWheel::readAndResetDelta() { return readAndResetDelta(0_rad); }

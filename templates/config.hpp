@@ -1,13 +1,14 @@
 #pragma once
 
-#include "autumn/core/base_config.hpp"
+#include "autumn/chassis/drive_curve.hpp"
+#include "autumn/core/abstract_config.hpp"
 #include "autumn/localization/tracking_wheel.hpp"
 
 #include "pros/imu.hpp"
 #include "pros/motor_group.hpp"
 #include "pros/rotation.hpp"
 
-struct TeamConfig : autumn::BaseConfig {
+struct TemplateConfig : autumn::AbstractConfig {
     pros::Controller controller{pros::E_CONTROLLER_MASTER};
 
     pros::MotorGroup leftMotors{-5, 4, -3};

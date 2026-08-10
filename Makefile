@@ -32,10 +32,10 @@ ifeq ($(IS_LIBRARY),0)
 EXCLUDE_SRCDIRS+=src/autumn
 endif
 
-EXCLUDE_SRC_FROM_LIB+=$(foreach file, $(SRCDIR)/main $(SRCDIR)/team/assets,$(foreach cext,$(CEXTS),$(file).$(cext)) $(foreach cxxext,$(CXXEXTS),$(file).$(cxxext)))
+EXCLUDE_SRC_FROM_LIB+=$(foreach file, $(SRCDIR)/main $(SRCDIR)/assets,$(foreach cext,$(CEXTS),$(file).$(cext)) $(foreach cxxext,$(CXXEXTS),$(file).$(cxxext)))
 
 TEMPLATE_SYSTEM_FILES=$(shell find $(INCDIR)/autumn -name '*.hpp') $(FWDIR)/hot-cold-asset.mk
-TEMPLATE_USER_FILES=$(ROOT)/static/example.txt $(ROOT)/team/config.hpp $(ROOT)/team/autonomous.hpp $(ROOT)/team/driver.hpp $(SRCDIR)/main.cpp $(SRCDIR)/team/assets.cpp
+TEMPLATE_USER_FILES=$(ROOT)/static/example.txt $(ROOT)/templates/config.hpp $(ROOT)/templates/autonomous.hpp $(ROOT)/templates/driver.hpp $(SRCDIR)/main.cpp $(SRCDIR)/assets.cpp
 
 .DEFAULT_GOAL=quick
 

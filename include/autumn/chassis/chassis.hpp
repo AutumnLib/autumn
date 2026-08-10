@@ -23,7 +23,7 @@ namespace autumn {
 template <typename Config>
 class Chassis {
 public:
-    Chassis(RobotContext<Config>& context, Odometry& odometry, pros::MotorGroup& left, pros::MotorGroup& right,
+    Chassis(AutumnContext<Config>& context, Odometry& odometry, pros::MotorGroup& left, pros::MotorGroup& right,
             ExpoDriveCurve throttleCurve = ExpoDriveCurve(), ExpoDriveCurve steerCurve = ExpoDriveCurve())
         : context_(context),
           odometry_(odometry),
@@ -36,6 +36,46 @@ public:
           leftVelocityPid_(2.0, 0.0, 0.0),
           rightVelocityPid_(2.0, 0.0, 0.0),
           driveFeedforward_(0.5, 0.0, 2.0) {}
+
+    class Builder {
+    public:
+        Builder& context(AutumnContext<Config>& ctx) {
+            context_ = &ctx;
+            return *this;
+        }
+        Builder& odometry(Odometry& odom) {
+            odometry_ = &odom;
+            return *this;
+        }
+        Builder& leftMotors(pros::MotorGroup& motors) {
+            left_ = &motors;
+            return *this;
+        }
+        Builder& rightMotors(pros::MotorGroup& motors) {
+            right_ = &motors;
+            return *this;
+        }
+        Builder& throttleCurve(ExpoDriveCurve curve) {
+            throttleCurve_ = curve;
+            return *this;
+        }
+        Builder& steerCurve(ExpoDriveCurve curve) {
+            steerCurve_ = curve;
+            return *this;
+        }
+
+        Chassis build() const {
+            return Chassis(*context_, *odometry_, *left_, *right_, throttleCurve_, steerCurve_);
+        }
+
+    private:
+        AutumnContext<Config>* context_ = nullptr;
+        Odometry* odometry_ = nullptr;
+        pros::MotorGroup* left_ = nullptr;
+        pros::MotorGroup* right_ = nullptr;
+        ExpoDriveCurve throttleCurve_{};
+        ExpoDriveCurve steerCurve_{};
+    };
 
     void calibrate() { odometry_.calibrateImu(); }
 
@@ -144,7 +184,7 @@ public:
     void cancel() { motion_handler::cancel(); }
 
 private:
-    RobotContext<Config>& context_;
+    AutumnContext<Config>& context_;
     Odometry& odometry_;
     pros::MotorGroup& left_;
     pros::MotorGroup& right_;

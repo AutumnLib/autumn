@@ -2,6 +2,7 @@
 #include "autumn/control/ltv_unicycle_controller.hpp"
 #include "autumn/control/pid.hpp"
 #include "autumn/control/velocity_drive.hpp"
+#include "autumn/logging/error_codes.hpp"
 #include "autumn/motion/follow.hpp"
 #include "autumn/motion/motion_common.hpp"
 #include "autumn/motion/profile/trapezoid_profile.hpp"
@@ -58,16 +59,20 @@ Pose boomerangTarget(const Pose& pose, const Pose& end, double leadInches) {
 
 void followPurePursuitPid(const std::vector<PathPoint>& path, Length lookahead, Time timeout, bool reversed,
                           FollowParams params, MotionSettings settings) {
-    PID angular = settings.angularPid != nullptr ? *settings.angularPid : PID(3, 0, 20);
-    PID lateral = settings.lateralPid != nullptr ? *settings.lateralPid : PID(10, 0, 3);
-    angular.reset();
+    PidController lateralFallback = makeLateralFallback(settings);
+    PidController angularFallback = makeAngularFallback(settings);
+    ScalarController& lateral = resolveLateral(settings, lateralFallback);
+    ScalarController& angular = resolveAngular(settings, angularFallback);
     lateral.reset();
+    angular.reset();
 
     const std::uint32_t start = pros::millis();
     const Pose end(path.back().x, path.back().y);
+    bool timedOut = false;
 
     while (!shouldExitMotion(settings)) {
         if (pros::millis() - start > static_cast<std::uint32_t>(to_milliseconds(timeout))) {
+            timedOut = true;
             break;
         }
 
@@ -84,14 +89,19 @@ void followPurePursuitPid(const std::vector<PathPoint>& path, Length lookahead, 
         }
 
         const double direction = reversed ? -1.0 : 1.0;
-        const double forward = std::clamp(lateral.update(to_inches(pose.distance(target)) * direction),
+        const double forward = std::clamp(lateral.calculate(to_inches(pose.distance(target)) * direction),
                                           -settings.maxVoltage * params.maxLateralSpeed.value(),
                                           settings.maxVoltage * params.maxLateralSpeed.value());
-        const double turn = std::clamp(angular.update(to_degrees(shortestAngleError(pose.angleTo(target), pose.theta))),
-                                       -settings.maxVoltage * params.maxAngularSpeed.value(),
-                                       settings.maxVoltage * params.maxAngularSpeed.value());
+        const double turn =
+            std::clamp(angular.calculate(to_degrees(shortestAngleError(pose.angleTo(target), pose.theta))),
+                       -settings.maxVoltage * params.maxAngularSpeed.value(),
+                       settings.maxVoltage * params.maxAngularSpeed.value());
         arcadeDrive(*settings.leftMotors, *settings.rightMotors, forward, turn, settings.maxVoltage);
         pros::delay(10);
+    }
+
+    if (timedOut) {
+        reportError(ErrorCode::MotionTimeout, "follow");
     }
 }
 
@@ -116,9 +126,11 @@ void followLtvPath(const std::vector<PathPoint>& path, Length lookahead, Time ti
     const std::uint32_t start = pros::millis();
     const Pose end(path.back().x, path.back().y);
     std::size_t segmentIndex = 0;
+    bool timedOut = false;
 
     while (!shouldExitMotion(settings)) {
         if (pros::millis() - start > static_cast<std::uint32_t>(to_milliseconds(timeout))) {
+            timedOut = true;
             break;
         }
 
@@ -166,6 +178,10 @@ void followLtvPath(const std::vector<PathPoint>& path, Length lookahead, Time ti
         driveVelocity(*settings.leftMotors, *settings.rightMotors, wheelSpeeds, leftVel, rightVel, ff,
                       settings.maxVoltage);
         pros::delay(10);
+    }
+
+    if (timedOut) {
+        reportError(ErrorCode::MotionTimeout, "follow/ltv");
     }
 }
 

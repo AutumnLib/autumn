@@ -69,3 +69,6 @@ vcpkg_installed/
 
 # Test output
 Testing/
+
+# Local architecture notes (not published)
+ARCHITECTURE.md

@@ -1,4 +1,4 @@
-#include "autumn/control/pid.hpp"
+#include "autumn/logging/error_codes.hpp"
 #include "autumn/motion/motion_common.hpp"
 #include "autumn/motion/turn_to.hpp"
 #include "autumn/util/filters.hpp"
@@ -35,15 +35,18 @@ void turnToHeading(Angle target, Time timeout, TurnToParams params, MotionSettin
         return;
     }
 
-    PID angular = settings.angularPid != nullptr ? *settings.angularPid : PID(3, 0, 20);
+    PidController angularFallback = makeAngularFallback(settings);
+    ScalarController& angular = resolveAngular(settings, angularFallback);
     angular.reset();
     SlewRateLimiter angularSlew(settings.angularSlew);
 
     const std::uint32_t start = pros::millis();
     double prevAngular = 0.0;
+    bool timedOut = false;
 
     while (!shouldExitMotion(settings)) {
         if (pros::millis() - start > static_cast<std::uint32_t>(to_milliseconds(timeout))) {
+            timedOut = true;
             break;
         }
 
@@ -55,7 +58,7 @@ void turnToHeading(Angle target, Time timeout, TurnToParams params, MotionSettin
 
         const double direction = pickTurnDirection(params.direction, error);
         const double angularOut = angularSlew.filter(
-            std::clamp(angular.update(to_degrees(error)) * direction, -settings.maxVoltage * params.maxSpeed.value(),
+            std::clamp(angular.calculate(to_degrees(error)) * direction, -settings.maxVoltage * params.maxSpeed.value(),
                        settings.maxVoltage * params.maxSpeed.value()),
             prevAngular);
         prevAngular = angularOut;
@@ -63,6 +66,9 @@ void turnToHeading(Angle target, Time timeout, TurnToParams params, MotionSettin
         pros::delay(10);
     }
 
+    if (timedOut) {
+        reportError(ErrorCode::MotionTimeout, "turnToHeading");
+    }
     tankDrive(*settings.leftMotors, *settings.rightMotors, 0, 0);
 }
 

@@ -1,10 +1,22 @@
 #include "autumn/localization/odometry.hpp"
 
+#include "autumn/logging/error_codes.hpp"
+
 #include <cmath>
 
 namespace autumn {
 
-Odometry::Odometry(const OdomConfig& config) : config_(config) {}
+Odometry::Odometry(const OdomConfig& config) : config_(config) {
+    if (config_.imu != nullptr) {
+        imu_ = std::make_unique<hardware::V5IMU>(config_.imu);
+    }
+    if (config_.leftMotors != nullptr) {
+        leftDrive_ = std::make_unique<hardware::MotorGroup>(config_.leftMotors);
+    }
+    if (config_.rightMotors != nullptr) {
+        rightDrive_ = std::make_unique<hardware::MotorGroup>(config_.rightMotors);
+    }
+}
 
 void Odometry::start() {
     if (running_) {
@@ -31,11 +43,11 @@ void Odometry::reset(const Pose& pose) {
 }
 
 void Odometry::calibrateImu() {
-    if (config_.imu != nullptr) {
-        config_.imu->reset(true);
-        while (config_.imu->is_calibrating()) {
-            pros::delay(10);
-        }
+    if (imu_ == nullptr) {
+        return;
+    }
+    if (imu_->calibrate(true) != 0) {
+        reportError(ErrorCode::OdomImuCal, "IMU calibrate failed");
     }
 }
 
@@ -88,17 +100,19 @@ void Odometry::updateLoop() {
         Length deltaVertical{0_in};
         Angle deltaHeading{0_rad};
 
-        const bool hasImu = config_.imu != nullptr;
+        const bool hasImu = imu_ != nullptr;
         if (!hasImu && config_.horizontalWheel != nullptr) {
             const Length deltaH = config_.horizontalWheel->readAndResetDelta();
             const double track = to_inches(config_.trackWidth);
             if (track > 1e-6) {
                 deltaHeading = radians(to_inches(deltaH) / track);
             }
-        } else if (config_.leftMotors != nullptr && config_.rightMotors != nullptr && config_.useImeFallback &&
-                   config_.verticalWheel == nullptr && config_.horizontalWheel == nullptr) {
-            const double left = config_.leftMotors->get_position() / 360.0;
-            const double right = config_.rightMotors->get_position() / 360.0;
+        } else if (leftDrive_ != nullptr && rightDrive_ != nullptr && config_.verticalWheel == nullptr &&
+                   config_.horizontalWheel == nullptr) {
+            // IME fallback when no tracking wheels: getAngle() is in radians and
+            // disconnect-resilient, so revolutions = angle / 2pi.
+            const double left = to_radians(leftDrive_->getAngle()) / (2.0 * M_PI);
+            const double right = to_radians(rightDrive_->getAngle()) / (2.0 * M_PI);
             const double wheelCirc =
                 M_PI * to_inches(config_.wheelDiameter > 0_in ? config_.wheelDiameter : inches(4.0));
             if (hasPrevDrive_) {
@@ -123,7 +137,7 @@ void Odometry::updateLoop() {
             integrate(deltaLeft, deltaRight, deltaVertical, deltaHeading);
         } else {
             integrate(deltaLeft, deltaRight, deltaVertical, 0_rad);
-            pose_.theta = radians(config_.imu->get_rotation() * kDegToRad);
+            pose_.theta = imu_->getRotation();
         }
         mutex_.give();
 

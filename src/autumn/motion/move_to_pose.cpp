@@ -1,4 +1,4 @@
-#include "autumn/control/pid.hpp"
+#include "autumn/logging/error_codes.hpp"
 #include "autumn/motion/motion_common.hpp"
 #include "autumn/motion/move_to_pose.hpp"
 #include "autumn/util/filters.hpp"
@@ -27,8 +27,10 @@ void moveToPose(Pose target, Time timeout, MoveToPoseParams params, MotionSettin
         return;
     }
 
-    PID lateral = settings.lateralPid != nullptr ? *settings.lateralPid : PID(10, 0, 3);
-    PID angular = settings.angularPid != nullptr ? *settings.angularPid : PID(3, 0, 20);
+    PidController lateralFallback = makeLateralFallback(settings);
+    PidController angularFallback = makeAngularFallback(settings);
+    ScalarController& lateral = resolveLateral(settings, lateralFallback);
+    ScalarController& angular = resolveAngular(settings, angularFallback);
     lateral.reset();
     angular.reset();
 
@@ -38,9 +40,11 @@ void moveToPose(Pose target, Time timeout, MoveToPoseParams params, MotionSettin
     const std::uint32_t start = pros::millis();
     double prevLateral = 0.0;
     double prevAngular = 0.0;
+    bool timedOut = false;
 
     while (!shouldExitMotion(settings)) {
         if (pros::millis() - start > static_cast<std::uint32_t>(to_milliseconds(timeout))) {
+            timedOut = true;
             break;
         }
 
@@ -54,10 +58,12 @@ void moveToPose(Pose target, Time timeout, MoveToPoseParams params, MotionSettin
 
         const double direction = params.reversed ? -1.0 : 1.0;
         const double lateralOut = lateralSlew.filter(
-            clampOutput(lateral.update(to_inches(distance) * direction), settings.maxVoltage * params.maxLateralSpeed.value()),
+            clampOutput(lateral.calculate(to_inches(distance) * direction),
+                        settings.maxVoltage * params.maxLateralSpeed.value()),
             prevLateral);
         const double angularOut = angularSlew.filter(
-            clampOutput(angular.update(to_degrees(headingError)), settings.maxVoltage * params.maxAngularSpeed.value()),
+            clampOutput(angular.calculate(to_degrees(headingError)),
+                        settings.maxVoltage * params.maxAngularSpeed.value()),
             prevAngular);
 
         prevLateral = lateralOut;
@@ -66,6 +72,9 @@ void moveToPose(Pose target, Time timeout, MoveToPoseParams params, MotionSettin
         pros::delay(10);
     }
 
+    if (timedOut) {
+        reportError(ErrorCode::MotionTimeout, "moveToPose");
+    }
     tankDrive(*settings.leftMotors, *settings.rightMotors, 0, 0);
 }
 

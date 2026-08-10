@@ -4,22 +4,25 @@ Autumn is a VEX V5 PROS autonomous library template.
 
 ## Getting started
 
-1. Edit `team/config.hpp` for ports and drivetrain geometry (plain inches/degrees).
-2. Implement `TeamAutonomous::getRoutes()` in `team/autonomous.hpp`.
+1. Edit `templates/config.hpp` for ports and drivetrain geometry (plain inches/degrees).
+2. Implement `TemplateAuto::getRoutes()` in `templates/autonomous.hpp`.
 3. Run `make libautumn` then `make`.
 
 ## Team API
 
 - **Units**: inches, degrees, and milliseconds at the team boundary (`chassis.moveToPoint(24, 0, 4000)`).
-- **Hardware**: register all devices in `team/config.hpp`; access via `config()` in auton/driver.
+- **Hardware**: register all devices in `templates/config.hpp`; access via `config()` in auton/driver.
 - **Auton menu**: override `getRoutes()` — no manual `addRoutine` in `main.cpp`.
 
 ## Architecture
 
-- **Core**: `Robot`, `RobotContext`, `BaseConfig`, `BaseAutonomous`, `BaseDriver`
+- **Core**: `Autumn`, `AutumnContext`, `AbstractConfig`, `AbstractAutonomous`, `AbstractDriver`
 - **Motion**: `motion_handler`, free-function motions, `Chassis` facade
-- **Localization**: `Odometry`, optional `ParticleFilter` (MCL)
-- **Control**: PID, feedforward, trapezoid profiles, optional LTV unicycle + velocity PID
+- **Localization**: `Odometry` (non-copyable — pass by reference), optional `ParticleFilter` (MCL)
+- **Control**: PID, feedforward, trapezoid profiles, optional LTV unicycle + velocity PID; composable `Controller<In,Out>` + fusions wired into motions
+- **Hardware HAL**: `Encoder` / `IMU` / `MotorGroup` / `AdiEncoder` facades with disconnect resilience + mutex
+- **Logging**: `logger` (terminal/SD sinks) + brain `ErrorCode`s raised at HAL/motion sites
+- **UI**: `AutonSelector` liblvgl menu owns screen (LLEMU fallback; do not mix)
 
 ## Motion API
 
@@ -69,6 +72,6 @@ pros conduct apply autumn
 pros conduct upgrade autumn
 ```
 
-User files (`team/`, `src/main.cpp`, `static/`) are never overwritten on upgrade. System files (`include/autumn/`, `firmware/libautumn.a`) are upgraded.
+User files (`templates/`, `src/main.cpp`, `static/`) are never overwritten on upgrade. System files (`include/autumn/`, `firmware/libautumn.a`) are upgraded.
 
-See [`depot/README.md`](../depot/README.md).
+The remote depot manifest lives on the `depot` branch (not yet published) rather than in this branch's `depot/` folder.
