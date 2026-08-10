@@ -45,7 +45,7 @@ libautumn: library
 
 .PHONY: template-release
 template-release: libautumn
-	$(MAKE) template CONSUMER_TEMPLATE=1
+	$(MAKE) template
 
 ################################################################################
 ################################################################################

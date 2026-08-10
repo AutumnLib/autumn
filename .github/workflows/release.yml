@@ -1,0 +1,83 @@
+name: Cut Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 0.2.0 (no leading v)"
+        required: true
+      prerelease:
+        description: "Mark as a pre-release (routes to beta.json instead of stable.json)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install PROS CLI
+        # pros-cli's get_version() relies on the removed pkg_resources module on
+        # setuptools>=81, crashing every command with "Could not determine version"
+        # (purduesigbots/pros-cli#403). Pin setuptools first to keep pkg_resources around.
+        run: pip install "setuptools<81" pros-cli
+
+      - name: Install ARM GNU Toolchain
+        uses: carlosperate/arm-none-eabi-gcc-action@v1
+
+      - name: Apply pinned kernel/liblvgl templates
+        run: |
+          KERNEL_VERSION=$(python3 -c "import json;print(json.load(open('project.pros'))['py/state']['templates']['kernel']['version'])")
+          LIBLVGL_VERSION=$(python3 -c "import json;print(json.load(open('project.pros'))['py/state']['templates']['liblvgl']['version'])")
+          pros conduct apply "kernel@$KERNEL_VERSION" --target v5
+          pros conduct apply "liblvgl@$LIBLVGL_VERSION" --target v5
+
+      - name: Build release template
+        # `pros c create-template` (invoked by the `template` make target) zips
+        # directly to ./autumn@<version>.zip in the project root by default
+        # (--zip defaults true) - it does not populate a template/ directory.
+        run: make template-release VERSION=${{ inputs.version }}
+
+      - name: Verify template zip
+        run: |
+          if [ ! -f "autumn@${{ inputs.version }}.zip" ]; then
+            echo "::error::autumn@${{ inputs.version }}.zip was not produced - build failed"
+            exit 1
+          fi
+
+      - name: Commit version bump
+        continue-on-error: true
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          sed -i "s/^VERSION:=.*/VERSION:=${{ inputs.version }}/" Makefile
+          git add Makefile
+          git commit -m "chore: release v${{ inputs.version }}" || echo "no changes"
+          git push
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ inputs.version }}
+          name: v${{ inputs.version }}
+          prerelease: ${{ inputs.prerelease }}
+          generate_release_notes: true
+          files: autumn@${{ inputs.version }}.zip
+
+      - name: Trigger depot update
+        # Releases created via GITHUB_TOKEN don't fire other workflows' `on: release`
+        # trigger (GitHub's anti-recursion guard), so dispatch depot.yml explicitly.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run depot.yml --ref master
