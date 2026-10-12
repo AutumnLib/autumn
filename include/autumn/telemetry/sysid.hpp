@@ -14,7 +14,7 @@ struct SysIdResult {
 
 class SysId {
 public:
-    static SysIdResult characterizeDrive(pros::MotorGroup& left, pros::MotorGroup& right, double testVoltage = 40.0,
+    static SysIdResult characterizeDrive(pros::MotorGroup& left, pros::MotorGroup& right, double testVoltage = 6000.0,
                                          Time duration = 2000_ms);
 };
 

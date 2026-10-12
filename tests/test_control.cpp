@@ -43,8 +43,9 @@ TEST_CASE("sign flip still clears the integral") {
 
 // LemLib 0.5 gains are per 10 ms tick. Autumn divides by dt, so the same kD is ~100x stronger.
 // Matching at 10 ms means kI_autumn = kI_lemlib * 100 and kD_autumn = kD_lemlib / 100.
-TEST_CASE("default derivative gain matches a LemLib per-tick kD at 10 ms" * doctest::may_fail()) {
-    PID pid(0.0, 0.0, 3.0, 0.0, false);
+TEST_CASE("default derivative gain matches a LemLib per-tick kD at 10 ms") {
+    // dt PID: kD_autumn = kD_lemlib / 100 at a 10 ms loop.
+    PID pid(0.0, 0.0, 0.03, 0.0, false);
     pid.update(0.0, 10_ms);
     const double output = pid.update(10.0, 10_ms);
     CHECK(output == autumn::test::absApprox(30.0, 1e-6));
@@ -84,18 +85,22 @@ TEST_CASE("trapezoid profile ends on the requested distance for a long move") {
     CHECK(profile.velocityAt(profile.totalTime()).value() == autumn::test::absApprox(0.0, 0.05));
 }
 
-TEST_CASE("short trapezoid still covers the requested distance" * doctest::may_fail()) {
+TEST_CASE("short trapezoid still covers the requested distance") {
     TrapezoidProfile profile(ips(10.0), 10.0);
     profile.recalculate(2_in);
     CHECK(to_inches(profile.distanceAt(profile.totalTime())) == autumn::test::absApprox(2.0, 0.05));
 }
 
-TEST_CASE("SCurveProfile is not a jerk-limited profile" * doctest::may_fail()) {
-    SCurveProfile gentle(ips(48.0), 50.0);
-    SCurveProfile sharp(ips(48.0), 5000.0);
-    CHECK_FALSE(gentle.velocityAt(1000_ms).value() == autumn::test::absApprox(sharp.velocityAt(1000_ms).value(), 1.0));
+TEST_CASE("SCurveProfile jerk changes the duration and the stop is continuous") {
+    SCurveProfile gentle(ips(48.0), 24.0, 50.0);
+    SCurveProfile sharp(ips(48.0), 24.0, 5000.0);
+    gentle.recalculate(80_in);
+    sharp.recalculate(80_in);
+    CHECK(to_milliseconds(gentle.totalTime()) > to_milliseconds(sharp.totalTime()) + 50.0);
 
-    const double beforeStop = gentle.velocityAt(1990_ms).value();
-    const double atStop = gentle.velocityAt(2000_ms).value();
-    CHECK(std::abs(beforeStop - atStop) < 10.0);
+    const Time stop = gentle.totalTime();
+    const double beforeStop = gentle.velocityAt(milliseconds(std::max(0.0, to_milliseconds(stop) - 30.0))).value();
+    const double atStop = gentle.velocityAt(stop).value();
+    CHECK(std::abs(beforeStop - atStop) < 15.0);
+    CHECK(atStop == doctest::Approx(0.0).epsilon(0.01));
 }

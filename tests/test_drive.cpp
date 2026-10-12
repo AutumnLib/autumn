@@ -34,7 +34,7 @@ struct DriveRig {
 
 } // namespace
 
-TEST_CASE("ExpoDriveCurve maps a full stick to full scale" * doctest::may_fail()) {
+TEST_CASE("ExpoDriveCurve maps a full stick to full scale") {
     ExpoDriveCurve curve(0, 0, 1.0);
     CHECK(curve.curve(0.0) == doctest::Approx(0.0));
     CHECK(curve.curve(127.0) == autumn::test::absApprox(127.0, 0.5));
@@ -44,15 +44,15 @@ TEST_CASE("ExpoDriveCurve maps a full stick to full scale" * doctest::may_fail()
     CHECK(deadband.curve(10.0) == doctest::Approx(0.0));
 }
 
-TEST_CASE("arcade preserves the left/right ratio when a side would saturate" * doctest::may_fail()) {
+TEST_CASE("arcade preserves the left/right ratio when a side would saturate") {
     pros::MotorGroup left{1};
     pros::MotorGroup right{2};
     arcadeDrive(left, right, 100.0, 50.0, 100.0);
-    CHECK(left.commandedVoltage() == autumn::test::absApprox(200.0 / 3.0, 0.5));
-    CHECK(right.commandedVoltage() == autumn::test::absApprox(100.0 / 3.0, 0.5));
+    CHECK(left.commandedVoltage() == autumn::test::absApprox(12000.0, 50.0));
+    CHECK(right.commandedVoltage() == autumn::test::absApprox(4000.0, 50.0));
 }
 
-TEST_CASE("curvature turns both ways and stays inside the output range" * doctest::may_fail()) {
+TEST_CASE("curvature turns both ways and stays inside the output range") {
     DriveRig rig;
     rig.chassis.curvature(127.0, 127.0);
     const std::int32_t positiveLeft = rig.left.commandedVoltage();
@@ -64,8 +64,8 @@ TEST_CASE("curvature turns both ways and stays inside the output range" * doctes
 
     CHECK(positiveLeft == autumn::test::absApprox(negativeRight, 1));
     CHECK(positiveRight == autumn::test::absApprox(negativeLeft, 1));
-    CHECK(std::abs(positiveLeft) <= 127);
-    CHECK(std::abs(positiveRight) <= 127);
+    CHECK(std::abs(positiveLeft) <= 12000);
+    CHECK(std::abs(positiveRight) <= 12000);
     CHECK(positiveLeft != positiveRight);
 }
 

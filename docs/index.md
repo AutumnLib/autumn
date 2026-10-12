@@ -18,8 +18,8 @@ Autumn is a VEX V5 PROS autonomous library template.
 
 - **Core**: `Autumn`, `AutumnContext`, `AbstractConfig`, `AbstractAutonomous`, `AbstractDriver`
 - **Motion**: `motion_handler`, free-function motions, `Chassis` facade
-- **Localization**: `Odometry` (non-copyable — pass by reference), optional `ParticleFilter` (MCL)
-- **Control**: PID, feedforward, trapezoid profiles, optional LTV unicycle + velocity PID; composable `Controller<In,Out>` + fusions wired into motions
+- **Localization**: `Odometry` (non-copyable — pass by reference). `ParticleFilter` is a deferred MCL stub and is not the pose source.
+- **Control**: dt-based PID (LemLib 0.5 per-tick gains convert at 10 ms as kI×100 and kD/100), feedforward, trapezoid and jerk-limited S-curve profiles. `LtvUnicycleController` is a documented stub, not used by `follow`. Composable `Controller<In,Out>` hooks remain.
 - **Hardware HAL**: `Encoder` / `IMU` / `MotorGroup` / `AdiEncoder` facades with disconnect resilience + mutex
 - **Logging**: `logger` (terminal/SD sinks) + brain `ErrorCode`s raised at HAL/motion sites
 - **UI**: `AutonSelector` liblvgl menu owns screen (LLEMU fallback; do not mix)
@@ -33,12 +33,11 @@ autumn::motion_handler::move([&] {
 autumn::motion_handler::waitUntilDistance(12_in, settings.poseGetter);
 ```
 
-Optional LTV path tracking:
+`follow` is pure pursuit. Boomerang is `moveToPose`. Discrete LTV tracking is deferred; see `LtvUnicycleController`.
 
 ```cpp
-autumn::FollowParams params;
-params.useLtvTracking = true;
-chassis.follow(path, 15, 6000, false, params);
+chassis.moveToPose(24, 24, 90, 4000);
+chassis.follow(path, 15, 6000, false);
 ```
 
 ## Paths
@@ -72,6 +71,10 @@ pros conduct add-depot Autumn https://raw.githubusercontent.com/AutumnLib/autumn
 pros conduct apply autumn
 pros conduct upgrade autumn
 ```
+
+`Autumn` in `add-depot` is just a local nickname for the depot — call it whatever you want. The template name in
+`apply`/`upgrade` must be exactly `autumn` (lowercase); pros-cli matches template names case-sensitively, so
+`apply Autumn` fails with a misleading `does not support kernel version ...` error instead of a clear "not found".
 
 User files (`templates/`, `src/main.cpp`, `static/`) are never overwritten on upgrade. System files (`include/autumn/`, `firmware/libautumn.a`) are upgraded.
 

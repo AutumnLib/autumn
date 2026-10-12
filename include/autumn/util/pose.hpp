@@ -42,10 +42,11 @@ public:
         return inches(std::hypot(dx, dy));
     }
 
+    // LemLib frame: +x right, +y forward, heading 0 = +y, clockwise positive.
     Angle angleTo(const Pose& other) const {
         const double dx = to_inches(other.x) - to_inches(x);
         const double dy = to_inches(other.y) - to_inches(y);
-        return radians(std::atan2(dy, dx));
+        return radians(std::atan2(dx, dy));
     }
 
     Angle headingError(Angle targetHeading) const {

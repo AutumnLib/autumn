@@ -8,7 +8,9 @@ namespace autumn {
 
 struct MoveToPoseParams {
     bool reversed = false;
-    bool lead = true;
+    // How far the carrot sits back along the target heading, as a fraction of distance.
+    double lead = 0.6;
+    double horizontalDrift = 2.0;
     Number maxLateralSpeed = Number(1.0);
     Number minLateralSpeed = Number(0.0);
     Number maxAngularSpeed = Number(1.0);

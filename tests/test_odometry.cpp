@@ -38,7 +38,7 @@ TEST_CASE("setPose round trip") {
     CHECK(to_degrees(pose.theta) == autumn::test::absApprox(90.0, 1e-6));
 }
 
-TEST_CASE("vertical wheel plus IMU at heading 0 reports +y" * doctest::may_fail()) {
+TEST_CASE("vertical wheel plus IMU at heading 0 reports +y") {
     pros::Imu imu(1);
     pros::Rotation vertical(2);
     TrackingWheel wheel(&vertical, 2.75_in, 0_in);
@@ -76,7 +76,7 @@ TEST_CASE("odometry pose changes when the vertical wheel moves") {
     CHECK(to_inches(odometry.getPose().distance(Pose{})) > 1.0);
 }
 
-TEST_CASE("forward travel at heading 90 goes to +x" * doctest::may_fail()) {
+TEST_CASE("forward travel at heading 90 goes to +x") {
     pros::Imu imu(1);
     pros::Rotation vertical(2);
     TrackingWheel wheel(&vertical, 2.75_in, 0_in);
@@ -97,7 +97,7 @@ TEST_CASE("forward travel at heading 90 goes to +x" * doctest::may_fail()) {
     CHECK(to_degrees(pose.theta) == autumn::test::absApprox(90.0, 0.5));
 }
 
-TEST_CASE("horizontal wheel is strafe, including while an IMU is connected" * doctest::may_fail()) {
+TEST_CASE("horizontal wheel is strafe, including while an IMU is connected") {
     pros::Imu imu(1);
     pros::Rotation vertical(2);
     pros::Rotation horizontal(3);
@@ -124,7 +124,7 @@ TEST_CASE("horizontal wheel is strafe, including while an IMU is connected" * do
     CHECK(to_inches(pose.y) == autumn::test::absApprox(10.0, 0.35));
 }
 
-TEST_CASE("a single horizontal wheel is not a heading source" * doctest::may_fail()) {
+TEST_CASE("a single horizontal wheel is not a heading source") {
     pros::Rotation horizontal(3);
     TrackingWheel horizontalWheel(&horizontal, 2.75_in, 0_in);
     OdomConfig config;
@@ -138,7 +138,7 @@ TEST_CASE("a single horizontal wheel is not a heading source" * doctest::may_fai
     CHECK(to_degrees(odometry.getPose().theta) == autumn::test::absApprox(0.0, 0.5));
 }
 
-TEST_CASE("IME-only straight drive tracks +y" * doctest::may_fail()) {
+TEST_CASE("IME-only straight drive tracks +y") {
     pros::MotorGroup left{1};
     pros::MotorGroup right{2};
     OdomConfig config;
@@ -161,7 +161,7 @@ TEST_CASE("IME-only straight drive tracks +y" * doctest::may_fail()) {
     CHECK(to_degrees(pose.theta) == autumn::test::absApprox(0.0, 0.5));
 }
 
-TEST_CASE("IME point turn with the left side forward is clockwise" * doctest::may_fail()) {
+TEST_CASE("IME point turn with the left side forward is clockwise") {
     pros::MotorGroup left{1};
     pros::MotorGroup right{2};
     OdomConfig config;
@@ -182,7 +182,7 @@ TEST_CASE("IME point turn with the left side forward is clockwise" * doctest::ma
     CHECK(to_inches(odometry.getPose().distance(Pose{})) < 1.0);
 }
 
-TEST_CASE("IMU heading still compensates a vertically offset wheel" * doctest::may_fail()) {
+TEST_CASE("IMU heading still compensates a vertically offset wheel") {
     pros::Imu imu(1);
     pros::Rotation vertical(2);
     constexpr double kOffsetIn = 2.0;
@@ -206,7 +206,7 @@ TEST_CASE("IMU heading still compensates a vertically offset wheel" * doctest::m
     CHECK(to_degrees(pose.theta) == autumn::test::absApprox(90.0, 0.5));
 }
 
-TEST_CASE("successful IMU calibration is not reported as a failure" * doctest::may_fail()) {
+TEST_CASE("successful IMU calibration is not reported as a failure") {
     pros::testing::resetClock();
     pros::screen::clearLastText();
     pros::Imu imu(1);

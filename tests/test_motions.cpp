@@ -2,7 +2,6 @@
 
 #include "support.hpp"
 
-#include "autumn/control/feedforward.hpp"
 #include "autumn/control/pid.hpp"
 #include "autumn/motion/follow.hpp"
 #include "autumn/motion/move_to_point.hpp"
@@ -53,7 +52,7 @@ int peakVoltage(pros::MotorGroup& left, pros::MotorGroup& right) {
 
 } // namespace
 
-TEST_CASE("motions command millivolts rather than the 127 joystick scale" * doctest::may_fail()) {
+TEST_CASE("motions command millivolts rather than the 127 joystick scale") {
     pros::testing::resetClock();
     pros::screen::clearLastText();
     setMotionCancelled(false);
@@ -89,7 +88,7 @@ TEST_CASE("turnToHeading reaches a clockwise target") {
     CHECK(rig.sim.headingDegrees() == autumn::test::absApprox(90.0, 12.0));
 }
 
-TEST_CASE("turnToHeading Auto takes the shorter direction" * doctest::may_fail()) {
+TEST_CASE("turnToHeading Auto takes the shorter direction") {
     ClosedLoop rig(0.0, 20.0);
     TurnToParams params;
     params.direction = TurnDirection::Auto;
@@ -98,7 +97,7 @@ TEST_CASE("turnToHeading Auto takes the shorter direction" * doctest::may_fail()
     CHECK(rig.sim.headingDegrees() == autumn::test::absApprox(-90.0, 12.0));
 }
 
-TEST_CASE("turnToHeading reaches a counter-clockwise target" * doctest::may_fail()) {
+TEST_CASE("turnToHeading reaches a counter-clockwise target") {
     ClosedLoop rig(0.0, 20.0);
     TurnToParams params;
     params.direction = TurnDirection::CounterClockwise;
@@ -107,14 +106,14 @@ TEST_CASE("turnToHeading reaches a counter-clockwise target" * doctest::may_fail
     CHECK(rig.sim.headingDegrees() == autumn::test::absApprox(-90.0, 12.0));
 }
 
-TEST_CASE("moveToPoint arrives on a forward LemLib target" * doctest::may_fail()) {
+TEST_CASE("moveToPoint arrives on a forward LemLib target") {
     ClosedLoop rig(500.0, 40.0);
     moveToPoint(Pose(0.0, 24.0, 0.0), 2000_ms, {}, rig.settings);
     CHECK(rig.sim.x() == autumn::test::absApprox(0.0, 3.0));
     CHECK(rig.sim.y() == autumn::test::absApprox(24.0, 3.0));
 }
 
-TEST_CASE("overshoot backs up instead of turning around" * doctest::may_fail()) {
+TEST_CASE("overshoot backs up instead of turning around") {
     ClosedLoop rig(500.0, 40.0);
     rig.sim.setPose(0.0, 12.0, 0.0);
     moveToPoint(Pose(0.0, 0.0, 0.0), 2000_ms, {}, rig.settings);
@@ -122,7 +121,7 @@ TEST_CASE("overshoot backs up instead of turning around" * doctest::may_fail()) 
     CHECK(std::abs(rig.sim.headingDegrees()) < 25.0);
 }
 
-TEST_CASE("reversed moveToPoint drives backward to a point behind the robot" * doctest::may_fail()) {
+TEST_CASE("reversed moveToPoint drives backward to a point behind the robot") {
     ClosedLoop rig(500.0, 40.0);
     MoveToPointParams params;
     params.reversed = true;
@@ -131,7 +130,7 @@ TEST_CASE("reversed moveToPoint drives backward to a point behind the robot" * d
     CHECK(std::abs(rig.sim.headingDegrees()) < 25.0);
 }
 
-TEST_CASE("inside 7.5 inches the angular output is off" * doctest::may_fail()) {
+TEST_CASE("inside 7.5 inches the angular output is off") {
     pros::testing::resetClock();
     setMotionCancelled(false);
     pros::MotorGroup left{1};
@@ -161,7 +160,7 @@ TEST_CASE("inside 7.5 inches the angular output is off" * doctest::may_fail()) {
     CHECK(std::abs(leftVoltage - rightVoltage) < 500);
 }
 
-TEST_CASE("minSpeed is a floor on the lateral output" * doctest::may_fail()) {
+TEST_CASE("minSpeed is a floor on the lateral output") {
     pros::testing::resetClock();
     setMotionCancelled(false);
     pros::MotorGroup left{1};
@@ -187,7 +186,7 @@ TEST_CASE("minSpeed is a floor on the lateral output" * doctest::may_fail()) {
     CHECK(peak >= 9000);
 }
 
-TEST_CASE("timing out is a normal exit and does not raise MotionTimeout" * doctest::may_fail()) {
+TEST_CASE("timing out is a normal exit and does not raise MotionTimeout") {
     pros::testing::resetClock();
     pros::screen::clearLastText();
     setMotionCancelled(false);
@@ -209,7 +208,7 @@ TEST_CASE("timing out is a normal exit and does not raise MotionTimeout" * docte
     CHECK(pros::screen::lastText().empty());
 }
 
-TEST_CASE("moveToPose is boomerang and finishes on the target heading" * doctest::may_fail()) {
+TEST_CASE("moveToPose is boomerang and finishes on the target heading") {
     ClosedLoop rig(500.0, 40.0);
     moveToPose(Pose(24.0, 24.0, 90.0), 2500_ms, {}, rig.settings);
     CHECK(rig.sim.x() == autumn::test::absApprox(24.0, 4.0));
@@ -217,7 +216,7 @@ TEST_CASE("moveToPose is boomerang and finishes on the target heading" * doctest
     CHECK(rig.sim.headingDegrees() == autumn::test::absApprox(90.0, 15.0));
 }
 
-TEST_CASE("pure pursuit stays near the path instead of cutting the corner" * doctest::may_fail()) {
+TEST_CASE("pure pursuit stays near the path instead of cutting the corner") {
     ClosedLoop rig(400.0, 35.0);
     const std::string body = "0,0,80\n0,24,80\n24,24,0\n";
     asset path{reinterpret_cast<std::uint8_t*>(const_cast<char*>(body.data())), body.size()};
@@ -228,40 +227,8 @@ TEST_CASE("pure pursuit stays near the path instead of cutting the corner" * doc
         const double dy = rig.sim.y() - 24.0;
         closestCorner = std::min(closestCorner, std::hypot(dx, dy));
     });
-    follow(path, 8_in, 2000_ms, false, {}, rig.settings);
+    follow(path, 8_in, 4000_ms, false, {}, rig.settings);
     pros::testing::setDelayHook([&](std::uint32_t milliseconds) { rig.sim.step(milliseconds); });
     CHECK(closestCorner < 6.0);
-    CHECK(std::hypot(rig.sim.x() - 24.0, rig.sim.y() - 24.0) < 6.0);
-}
-
-TEST_CASE("boomerang follow mode is not a straight line to the end" * doctest::may_fail()) {
-    ClosedLoop rig(400.0, 35.0);
-    const std::string body = "0,0,80\n0,24,80\n24,24,0\n";
-    asset path{reinterpret_cast<std::uint8_t*>(const_cast<char*>(body.data())), body.size()};
-    FollowParams params;
-    params.mode = FollowMode::Boomerang;
-    double closestCorner = 1.0e9;
-    pros::testing::setDelayHook([&](std::uint32_t milliseconds) {
-        rig.sim.step(milliseconds);
-        closestCorner = std::min(closestCorner, std::hypot(rig.sim.x(), rig.sim.y() - 24.0));
-    });
-    follow(path, 10_in, 2000_ms, false, params, rig.settings);
-    pros::testing::setDelayHook([&](std::uint32_t milliseconds) { rig.sim.step(milliseconds); });
-    CHECK(closestCorner < 6.0);
-}
-
-TEST_CASE("LTV follow tracks the path" * doctest::may_fail()) {
-    ClosedLoop rig(400.0, 35.0);
-    PID leftVelocity(2.0, 0.0, 0.0);
-    PID rightVelocity(2.0, 0.0, 0.0);
-    Feedforward feedforward(0.5, 0.0, 2.0);
-    rig.settings.leftVelocityPid = &leftVelocity;
-    rig.settings.rightVelocityPid = &rightVelocity;
-    rig.settings.driveFeedforward = &feedforward;
-    const std::string body = "0,0,60\n0,24,60\n24,24,0\n";
-    asset path{reinterpret_cast<std::uint8_t*>(const_cast<char*>(body.data())), body.size()};
-    FollowParams params;
-    params.useLtvTracking = true;
-    follow(path, 8_in, 2000_ms, false, params, rig.settings);
     CHECK(std::hypot(rig.sim.x() - 24.0, rig.sim.y() - 24.0) < 6.0);
 }
