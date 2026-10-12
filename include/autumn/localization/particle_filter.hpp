@@ -12,6 +12,8 @@ struct Particle {
     double weight = 1.0;
 };
 
+// Deferred MCL. Weights are updated, but there is no resample step and this
+// filter is not wired into Odometry. Do not use it as the pose source.
 class ParticleFilter {
 public:
     explicit ParticleFilter(std::size_t particleCount = 100);

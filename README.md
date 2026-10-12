@@ -1,12 +1,12 @@
 # Autumn
 
-Autumn is a PROS C++ template for VEX V5 autonomous programming. It combines compile-time dependency wiring (Spring-style `Autumn` + `AutumnContext`), LemLib-inspired motion chaining (`MotionHandler` + free-function motions), and a control stack from odometry through Pure Pursuit, optional LTV unicycle tracking, and MCL.
+Autumn is a PROS C++ template for VEX V5 autonomous programming. It combines compile-time dependency wiring (Spring-style `Autumn` + `AutumnContext`), LemLib-inspired motion chaining (`MotionHandler` + free-function motions), and a control stack from odometry through Pure Pursuit and boomerang `moveToPose`. A discrete LTV unicycle tracker and MCL are deferred.
 
 ## Features
 
 - **Robot shell**: `AbstractConfig`, `AbstractAutonomous`, `AbstractDriver`, `AutumnContext<Config>`
 - **MotionHandler**: async motion task with `move`, `cancel`, `waitUntilPoint`, `waitUntilDistance`
-- **Motions**: `moveToPoint`, `moveToPose`, `turnToHeading`, `turnToPoint`, `follow` (PP + optional LTV)
+- **Motions**: `moveToPoint`, boomerang `moveToPose`, `turnToHeading`, `turnToPoint`, `swingToHeading`, `swingToPoint`, `follow` (pure pursuit)
 - **Odometry**: tracking wheels + optional IMU heading fusion
 - **Hardware HAL**: `Encoder` / `IMU` / `MotorGroup` facades with micro-disconnect resilience (last-good + reconnect rebase)
 - **Composable controllers**: `Controller<In,Out>` with `PidController` / `FeedforwardController` / `SlewController` / `SlewedController` + `ChainedController` / `AdditiveController`; motions honor `MotionSettings` controller hooks
@@ -32,6 +32,10 @@ Autumn is a PROS C++ template for VEX V5 autonomous programming. It combines com
    ```
 
    Until the first non-prerelease version ships, `stable.json` is empty — use the `beta.json` depot to try alpha/beta builds.
+
+   > `Autumn` in `add-depot` is just a local nickname for the depot — call it whatever you want. The template name
+   > in `apply`/`upgrade` must be exactly `autumn` (lowercase); pros-cli matches template names case-sensitively,
+   > so `apply Autumn` will fail with a misleading `does not support kernel version ...` error.
 2. Configure hardware in [`templates/config.hpp`](templates/config.hpp).
 3. Define auton routes in [`templates/autonomous.hpp`](templates/autonomous.hpp) via `getRoutes()` and driver code in [`templates/driver.hpp`](templates/driver.hpp).
 4. Build the library and project:
@@ -72,7 +76,7 @@ chassis_.follow(example_txt, 15, 6000);
 | Motions | v0.6 free functions + MotionHandler | Same pattern |
 | Distribution | `liblemlib.a` | `libautumn.a` |
 | Hardware | User-owned | `templates/config.hpp` via `config()` |
-| Advanced | PP, boomerang | + optional LTV, MCL, profiling, SysId |
+| Advanced | PP, boomerang | PP + boomerang `moveToPose`. LTV and MCL are deferred. Jerk-limited S-curve exists as a profile primitive. |
 
 ## Documentation
 

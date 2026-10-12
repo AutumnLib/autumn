@@ -47,7 +47,7 @@ TEST_CASE("cancel stops the running motion") {
     CHECK(ticks >= 1);
 }
 
-TEST_CASE("waitUntilDistance uses distance traveled, not straight-line displacement" * doctest::may_fail()) {
+TEST_CASE("waitUntilDistance uses distance traveled, not straight-line displacement") {
     pros::testing::resetClock();
     pros::testing::setDelayHook(nullptr);
     setMotionCancelled(false);

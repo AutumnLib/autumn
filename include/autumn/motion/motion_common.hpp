@@ -28,7 +28,9 @@ struct MotionSettings {
     // default inline behavior for back-compat.
     ScalarController* lateralController = nullptr;
     ScalarController* angularController = nullptr;
-    double maxVoltage = 127.0;
+    // Full-scale command in the same units as PID output. 1.0 means normalized ±1.
+    // Converted to ±12000 mV at the motor. Joystick code still uses ±127 and scales once.
+    double maxVoltage = 1.0;
     double lateralSlew = 5.0;
     double angularSlew = 5.0;
 };
@@ -37,18 +39,21 @@ void tankDrive(pros::MotorGroup& left, pros::MotorGroup& right, double leftVolta
 
 void arcadeDrive(pros::MotorGroup& left, pros::MotorGroup& right, double forward, double turn, double maxVoltage = 127.0);
 
+// Mix lateral/angular commands that are in `maxVoltage` units and send millivolts.
+void driveScaled(pros::MotorGroup& left, pros::MotorGroup& right, double lateral, double angular, double maxVoltage);
+
 bool motionCancelled();
 void setMotionCancelled(bool cancelled);
 
 // Prefer an injected ScalarController; otherwise build a PidController from the
 // MotionSettings PID pointers (or the given default gains).
 inline PidController makeLateralFallback(const MotionSettings& settings, double kP = 10.0, double kI = 0.0,
-                                         double kD = 3.0) {
+                                         double kD = 0.03) {
     return PidController(settings.lateralPid != nullptr ? *settings.lateralPid : PID(kP, kI, kD));
 }
 
 inline PidController makeAngularFallback(const MotionSettings& settings, double kP = 3.0, double kI = 0.0,
-                                         double kD = 20.0) {
+                                         double kD = 0.2) {
     return PidController(settings.angularPid != nullptr ? *settings.angularPid : PID(kP, kI, kD));
 }
 

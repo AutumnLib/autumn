@@ -15,17 +15,11 @@ struct PathPoint {
     Velocity speed{ips(0)};
 };
 
-enum class FollowMode { PurePursuit, Boomerang };
-
+// follow() is pure pursuit. Boomerang is moveToPose, not a follow mode.
 struct FollowParams {
-    FollowMode mode = FollowMode::PurePursuit;
-    bool useLtvTracking = false;
     Number maxLateralSpeed = Number(1.0);
     Number maxAngularSpeed = Number(1.0);
     Length earlyExitRange = 1_in;
-    double ltvMaxXErrorIn = 2.5;
-    double ltvMaxYErrorIn = 5.0;
-    double ltvMaxThetaErrorRad = 2.0;
 };
 
 std::vector<PathPoint> parsePathAsset(const asset& pathAsset);

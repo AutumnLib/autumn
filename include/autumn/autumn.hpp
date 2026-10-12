@@ -2,6 +2,7 @@
 
 #include "autumn/chassis/chassis.hpp"
 #include "autumn/chassis/drive_curve.hpp"
+#include "autumn/chassis/legacy_chassis.hpp"
 #include "autumn/control/controller.hpp"
 #include "autumn/control/differential_drive_kinematics.hpp"
 #include "autumn/control/exit_condition.hpp"

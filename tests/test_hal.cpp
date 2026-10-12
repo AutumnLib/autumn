@@ -82,7 +82,7 @@ TEST_CASE("tracking wheel distance is angle times diameter over two") {
     wheel.readAndResetDelta();
     raw.setCentidegrees(static_cast<std::int32_t>(oneRevCentideg + 180.0 * 100.0));
     const Length delta = wheel.readAndResetDelta(90_deg);
-    const double expected = circumference / 2.0 - 1.5 * (M_PI / 2.0);
+    const double expected = circumference / 2.0 + 1.5 * (M_PI / 2.0);
     CHECK(to_inches(delta) == autumn::test::absApprox(expected, 1e-3));
 }
 

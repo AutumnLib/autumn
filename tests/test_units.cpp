@@ -25,7 +25,7 @@ TEST_CASE("wrapAngle and shortest error stay in [-pi, pi]") {
     CHECK(to_degrees(shortestAngleError(350_deg, 10_deg)) == autumn::test::absApprox(-20.0, 1e-4));
 }
 
-TEST_CASE("angleTo uses the LemLib heading: 0 is +y, clockwise positive" * doctest::may_fail()) {
+TEST_CASE("angleTo uses the LemLib heading: 0 is +y, clockwise positive") {
     const Pose origin(0.0, 0.0, 0.0);
     // Straight ahead is +y. LemLib heading to that point is 0, not +90.
     CHECK(to_degrees(origin.angleTo(Pose(0.0, 10.0, 0.0))) == autumn::test::absApprox(0.0, 1e-4));

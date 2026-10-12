@@ -2,6 +2,8 @@
 
 #include "autumn/logging/error_codes.hpp"
 
+#include "pros/error.h"
+
 #include <cmath>
 
 namespace autumn {
@@ -46,7 +48,8 @@ void Odometry::calibrateImu() {
     if (imu_ == nullptr) {
         return;
     }
-    if (imu_->calibrate(true) != 0) {
+    // PROS returns 1 on success and PROS_ERR on failure.
+    if (imu_->calibrate(true) == PROS_ERR) {
         reportError(ErrorCode::OdomImuCal, "IMU calibrate failed");
     }
 }
@@ -65,50 +68,55 @@ void Odometry::setPose(const Pose& pose) {
 }
 
 void Odometry::integrate(Length deltaLeft, Length deltaRight, Length deltaVertical, Angle deltaHeading) {
-    const double dL = to_inches(deltaLeft);
-    const double dR = to_inches(deltaRight);
-    const double dV = to_inches(deltaVertical);
+    // deltaVertical is forward (local Y). Horizontal strafe is passed as the
+    // average of the drive wheels only when it was stored in deltaLeft/Right
+    // by update(); the dedicated strafe distance is deltaLeft when deltaRight
+    // is zero and a horizontal reading was folded into deltaLeft by update().
+    // Callers pack forward in deltaVertical and strafe in deltaLeft, and pass
+    // deltaRight as 0. IME forward is already folded into deltaVertical.
+    const double strafe = to_inches(deltaLeft);
+    const double forward = to_inches(deltaVertical);
+    (void)deltaRight;
     const double dTheta = to_radians(deltaHeading);
 
-    double deltaLocalX = 0.0;
-    double deltaLocalY = 0.0;
-
+    double localX = 0.0;
+    double localY = 0.0;
     if (std::abs(dTheta) < 1e-6) {
-        deltaLocalY = dV;
+        localX = strafe;
+        localY = forward;
     } else {
-        const double sinHalf = std::sin(dTheta / 2.0);
-        const double factor = 2.0 * sinHalf / dTheta;
-        deltaLocalY = factor * dV;
-        const double avgL = (dL + dR) / 2.0;
-        deltaLocalX = factor * avgL;
+        const double factor = 2.0 * std::sin(dTheta / 2.0) / dTheta;
+        localX = factor * strafe;
+        localY = factor * forward;
     }
 
     const double heading = to_radians(pose_.theta) + dTheta / 2.0;
     const double cosH = std::cos(heading);
     const double sinH = std::sin(heading);
 
-    pose_.x += inches(deltaLocalY * cosH - deltaLocalX * sinH);
-    pose_.y += inches(deltaLocalY * sinH + deltaLocalX * cosH);
+    // LemLib 0.5.6: heading 0 = +y, clockwise positive.
+    pose_.x += inches(localY * sinH - localX * cosH);
+    pose_.y += inches(localY * cosH + localX * sinH);
     pose_.theta = wrapAngle(pose_.theta + deltaHeading);
 }
 
 void Odometry::update() {
-    Length deltaLeft{0_in};
-    Length deltaRight{0_in};
-    Length deltaVertical{0_in};
-    Angle deltaHeading{0_rad};
+    mutex_.take();
+    const Angle prevTheta = pose_.theta;
+    mutex_.give();
 
     const bool hasImu = imu_ != nullptr;
-    if (!hasImu && config_.horizontalWheel != nullptr) {
-        const Length deltaH = config_.horizontalWheel->readAndResetDelta();
-        const double track = to_inches(config_.trackWidth);
-        if (track > 1e-6) {
-            deltaHeading = radians(to_inches(deltaH) / track);
-        }
-    } else if (leftDrive_ != nullptr && rightDrive_ != nullptr && config_.verticalWheel == nullptr &&
-               config_.horizontalWheel == nullptr) {
-        // IME fallback when no tracking wheels: getAngle() is in radians and
-        // disconnect-resilient, so revolutions = angle / 2pi.
+    Angle imuTheta = prevTheta;
+    Angle deltaHeading{0_rad};
+    if (hasImu) {
+        imuTheta = imu_->getRotation();
+        deltaHeading = imuTheta - prevTheta;
+    }
+
+    Length deltaLeft{0_in};
+    Length deltaRight{0_in};
+    const bool haveDrive = leftDrive_ != nullptr && rightDrive_ != nullptr;
+    if (haveDrive) {
         const double left = to_radians(leftDrive_->getAngle()) / (2.0 * M_PI);
         const double right = to_radians(rightDrive_->getAngle()) / (2.0 * M_PI);
         const double wheelCirc =
@@ -116,26 +124,36 @@ void Odometry::update() {
         if (hasPrevDrive_) {
             deltaLeft = inches((left - prevLeft_) * wheelCirc);
             deltaRight = inches((right - prevRight_) * wheelCirc);
-            const double track = to_inches(config_.trackWidth);
-            if (track > 1e-6) {
-                deltaHeading = radians((to_inches(deltaRight) - to_inches(deltaLeft)) / track);
-            }
         }
         prevLeft_ = left;
         prevRight_ = right;
         hasPrevDrive_ = true;
     }
 
+    if (!hasImu && haveDrive && config_.verticalWheel == nullptr) {
+        const double track = to_inches(config_.trackWidth);
+        if (track > 1e-6) {
+            // Left side forward is clockwise.
+            deltaHeading = radians((to_inches(deltaLeft) - to_inches(deltaRight)) / track);
+        }
+    }
+
+    Length forward{0_in};
     if (config_.verticalWheel != nullptr) {
-        deltaVertical = config_.verticalWheel->readAndResetDelta(deltaHeading);
+        forward = config_.verticalWheel->readAndResetDelta(deltaHeading);
+    } else if (haveDrive && hasPrevDrive_) {
+        forward = inches((to_inches(deltaLeft) + to_inches(deltaRight)) / 2.0);
+    }
+
+    Length strafe{0_in};
+    if (config_.horizontalWheel != nullptr) {
+        strafe = config_.horizontalWheel->readAndResetDelta(deltaHeading);
     }
 
     mutex_.take();
-    if (!hasImu) {
-        integrate(deltaLeft, deltaRight, deltaVertical, deltaHeading);
-    } else {
-        integrate(deltaLeft, deltaRight, deltaVertical, 0_rad);
-        pose_.theta = imu_->getRotation();
+    integrate(strafe, 0_in, forward, deltaHeading);
+    if (hasImu) {
+        pose_.theta = imuTheta;
     }
     mutex_.give();
 }
