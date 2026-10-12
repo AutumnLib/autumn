@@ -5,6 +5,8 @@ ASMEXTS:=s S
 CXXEXTS:=cpp c++ cc
 
 ROOT=.
+# tests/ is a host-side harness. It is outside SRCDIR, so `make` and the
+# template zip (TEMPLATE_SYSTEM_FILES / TEMPLATE_USER_FILES) do not ship it.
 FWDIR:=$(ROOT)/firmware
 BINDIR=$(ROOT)/bin
 SRCDIR=$(ROOT)/src

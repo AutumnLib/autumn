@@ -97,6 +97,9 @@ public:
     Pose getPose() const;
     void setPose(const Pose& pose);
 
+    // One odometry tick. updateLoop() calls this, and host tests call it directly.
+    void update();
+
 private:
     void updateLoop();
     void integrate(Length deltaLeft, Length deltaRight, Length deltaVertical, Angle deltaHeading);

@@ -1,0 +1,24 @@
+name: tests
+
+on:
+  push:
+    branches: [test/harness, master]
+  pull_request:
+
+jobs:
+  host:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install a compiler that accepts gnu++26
+        run: |
+          sudo apt-get update
+          if apt-cache show g++-14 >/dev/null 2>&1; then
+            sudo apt-get install -y g++-14
+            echo "CXX=g++-14" >> "$GITHUB_ENV"
+          else
+            sudo apt-get install -y g++
+            echo "CXX=g++" >> "$GITHUB_ENV"
+          fi
+      - name: Build and run host tests
+        run: make -C tests CXX="$CXX"
