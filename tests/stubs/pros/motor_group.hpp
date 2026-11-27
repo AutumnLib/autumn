@@ -51,6 +51,11 @@ public:
         return 1;
     }
 
+    motor_brake_mode_e_t get_brake_mode(std::uint8_t index = 0) const {
+        (void)index;
+        return brakeMode_;
+    }
+
     std::int32_t get_current_limit() const { return connected_ ? currentLimitMa_ : PROS_ERR; }
 
     std::int32_t set_current_limit_all(std::int32_t milliamps) {

@@ -21,6 +21,7 @@ const char* errorCodeDescription(ErrorCode code) {
         case ErrorCode::DeviceDisconnect: return "device disconnected";
         case ErrorCode::MotionTimeout: return "motion timed out";
         case ErrorCode::OdomImuCal: return "odometry / IMU calibration";
+        case ErrorCode::UnsupportedConfig: return "unsupported configuration";
     }
     return "unknown";
 }

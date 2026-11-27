@@ -1,7 +1,9 @@
 # Host-side Autumn tests. Not part of the PROS `make` or the template zip.
-# CXX_STANDARD matches common.mk. GCC 14+ accepts gnu++26.
+# Prefer gnu++26 (matches common.mk) but fall back to gnu++20 so the suite
+# builds on distro compilers older than GCC 14. Override with CXX_STANDARD=.
 CXX ?= g++
-CXX_STANDARD ?= gnu++26
+CXX_STANDARD ?= $(shell echo 'int main(){}' | $(CXX) -std=gnu++26 -x c++ -fsyntax-only - >/dev/null 2>&1 \
+	&& echo gnu++26 || echo gnu++20)
 ROOT := ..
 BUILD := build
 

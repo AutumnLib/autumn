@@ -12,6 +12,7 @@ enum class ErrorCode {
     DeviceDisconnect = 2, // E002: device disconnected mid-run
     MotionTimeout = 3,  // E003: motion exited on timeout
     OdomImuCal = 4,     // E004: odometry / IMU calibration problem
+    UnsupportedConfig = 5, // E005: accepted for API shape but not implemented
 };
 
 // "E001" style string for a code.

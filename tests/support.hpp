@@ -30,4 +30,14 @@ struct PlantHook {
 
 inline Pose simPose(const DiffDriveSim& sim) { return Pose(sim.x(), sim.y(), sim.headingDegrees()); }
 
+// Heading difference in degrees, wrapped to +-180 so a turn that ends at -270
+// counts as +90.
+inline double headingDiffDeg(double actualDeg, double expectedDeg) {
+    double diff = std::fmod(actualDeg - expectedDeg + 540.0, 360.0);
+    if (diff < 0.0) {
+        diff += 360.0;
+    }
+    return diff - 180.0;
+}
+
 } // namespace autumn::test
