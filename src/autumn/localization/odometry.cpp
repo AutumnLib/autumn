@@ -110,7 +110,10 @@ void Odometry::update() {
     Angle deltaHeading{0_rad};
     if (hasImu) {
         imuTheta = imu_->getRotation();
-        deltaHeading = imuTheta - prevTheta;
+        // The V5 inertial reports 0..360, so a robot crossing zero computes a
+        // ~-350 deg step from 355 to 5. Wrap the difference into +-180 so the
+        // chord factor stays near 1 and the pose keeps its translation.
+        deltaHeading = wrapAngle(imuTheta - prevTheta);
     }
 
     Length deltaLeft{0_in};
@@ -152,9 +155,9 @@ void Odometry::update() {
 
     mutex_.take();
     integrate(strafe, 0_in, forward, deltaHeading);
-    if (hasImu) {
-        pose_.theta = imuTheta;
-    }
+    // integrate() already folded deltaHeading into the pose heading. Nothing to
+    // overwrite here: the old code assigned the raw IMU value, which reset the
+    // accumulated heading and reintroduced the sensor's 0..360 wrap.
     mutex_.give();
 }
 

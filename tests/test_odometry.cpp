@@ -228,3 +228,61 @@ TEST_CASE("odometry task starts and stops") {
     odometry.setPose(Pose(1.0, 2.0, 0.0));
     CHECK(to_inches(odometry.getPose().x) == doctest::Approx(1.0));
 }
+
+TEST_CASE("IMU heading wrap at 0/360 does not lose travel") {
+    // The IMU reports 0..360, so stepping from 355 to 5 looks like -350 deg. The
+    // chord factor then collapses and almost all of the translation is dropped.
+    struct Case {
+        double startDeg;
+        double endDeg;
+        double expectedInches;
+    };
+    const Case cases[] = {{355.0, 5.0, 10.0}, {5.0, 355.0, -10.0}, {40.0, 50.0, 10.0}};
+    for (const Case& testCase : cases) {
+        pros::Imu imu(1);
+        pros::Rotation vertical(2);
+        TrackingWheel wheel(&vertical, 2.75_in, 0_in);
+        OdomConfig config;
+        config.imu = &imu;
+        config.verticalWheel = &wheel;
+        config.trackWidth = 10.5_in;
+        Odometry odometry(config);
+
+        imu.set_rotation(testCase.startDeg);
+        vertical.setCentidegrees(0);
+        odometry.update();
+        odometry.setPose(Pose(0.0, 0.0, testCase.startDeg));
+
+        vertical.setCentidegrees(centidegreesForInches(10.0, 2.75));
+        imu.set_rotation(testCase.endDeg);
+        odometry.update();
+
+        CAPTURE(testCase.startDeg);
+        const Pose pose = odometry.getPose();
+        CHECK(std::hypot(to_inches(pose.x), to_inches(pose.y)) == autumn::test::absApprox(10.0, 0.35));
+        CHECK(std::hypot(to_inches(pose.x), to_inches(pose.y)) > 9.0);
+        (void)testCase.expectedInches;
+    }
+}
+
+TEST_CASE("heading keeps accumulating past a full turn with an IMU") {
+    pros::Imu imu(1);
+    pros::Rotation vertical(2);
+    TrackingWheel wheel(&vertical, 2.75_in, 0_in);
+    OdomConfig config;
+    config.imu = &imu;
+    config.verticalWheel = &wheel;
+    Odometry odometry(config);
+
+    imu.set_rotation(0.0);
+    vertical.setCentidegrees(0);
+    odometry.update();
+    // Spin through a full turn in 10 deg steps; the pose must stay put.
+    for (int step = 1; step <= 36; ++step) {
+        imu.set_rotation(step * 10.0);
+        odometry.update();
+    }
+    const Pose pose = odometry.getPose();
+    CHECK(to_inches(pose.distance(Pose{})) < 0.5);
+    CHECK(std::abs(autumn::test::headingDiffDeg(to_degrees(pose.theta), 0.0)) < 1.0);
+}

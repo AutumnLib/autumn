@@ -104,3 +104,32 @@ TEST_CASE("SCurveProfile jerk changes the duration and the stop is continuous") 
     CHECK(std::abs(beforeStop - atStop) < 15.0);
     CHECK(atStop == doctest::Approx(0.0).epsilon(0.01));
 }
+
+TEST_CASE("SCurveProfile distanceAt reports the distance it was asked to cover") {
+    // distanceAt used to return a hard-coded zero while velocityAt was correct,
+    // which made the profile look like it never moved.
+    for (double requested : {0.5, 2.0, 12.0, 80.0}) {
+        SCurveProfile profile(ips(48.0), 24.0, 50.0);
+        profile.recalculate(inches(requested));
+        CAPTURE(requested);
+        CHECK(to_inches(profile.distanceAt(profile.totalTime())) == autumn::test::absApprox(requested, 0.1));
+        // Monotonic and consistent with the velocity curve.
+        CHECK(to_inches(profile.distanceAt(0_ms)) == doctest::Approx(0.0));
+        const Time midpoint = milliseconds(to_milliseconds(profile.totalTime()) / 2.0);
+        CHECK(to_inches(profile.distanceAt(midpoint)) > 0.0);
+        CHECK(to_inches(profile.distanceAt(midpoint)) < requested);
+    }
+}
+
+TEST_CASE("SCurveProfile distance and velocity agree on peak speed") {
+    SCurveProfile profile(ips(48.0), 24.0, 200.0);
+    profile.recalculate(60_in);
+    // Integrate the velocity curve numerically and compare with distanceAt.
+    double integrated = 0.0;
+    const double totalMs = to_milliseconds(profile.totalTime());
+    for (double t = 0.0; t < totalMs; t += 0.5) {
+        integrated += profile.velocityAt(milliseconds(t)).value() * 0.0005;
+    }
+    CHECK(integrated == autumn::test::absApprox(60.0, 0.2));
+    CHECK(to_inches(profile.distanceAt(profile.totalTime())) == autumn::test::absApprox(integrated, 0.2));
+}

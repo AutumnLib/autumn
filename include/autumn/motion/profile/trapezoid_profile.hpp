@@ -37,6 +37,11 @@ public:
     Time totalTime() const { return totalTime_; }
 
 private:
+    // Positive-ramp shape (jerk on, constant accel, jerk off) shared by the accel
+    // and mirrored decel halves, so velocityAt and distanceAt cannot drift apart.
+    static double rampVelocity(double time, double tJ, double tA, double j, double a);
+    static double rampTravel(double time, double tJ, double tA, double j, double a);
+
     Velocity maxVelocity_{ips(48)};
     double maxAcceleration_{24.0};
     double maxJerk_{120.0};

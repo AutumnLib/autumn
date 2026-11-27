@@ -130,33 +130,70 @@ Velocity SCurveProfile::velocityAt(Time elapsed) const {
         return ips(0);
     }
 
-    auto phaseVelocity = [&](double time) {
-        if (time < tJ) {
-            return 0.5 * j * time * time;
-        }
-        if (time < tJ + tA) {
-            const double tau = time - tJ;
-            return 0.5 * j * tJ * tJ + a * tau;
-        }
-        if (time < 2.0 * tJ + tA) {
-            const double tau = time - tJ - tA;
-            const double v2 = 0.5 * j * tJ * tJ + a * tA;
-            return v2 + a * tau - 0.5 * j * tau * tau;
-        }
-        return peakVelocity_;
-    };
-
     const double ramp = 2.0 * tJ + tA;
     if (t < ramp) {
-        return ips(phaseVelocity(t));
+        return ips(rampVelocity(t, tJ, tA, j, a));
     }
     if (t < ramp + tC) {
         return ips(peakVelocity_);
     }
     const double down = t - ramp - tC;
-    return ips(std::max(0.0, peakVelocity_ - phaseVelocity(down)));
+    return ips(std::max(0.0, peakVelocity_ - rampVelocity(down, tJ, tA, j, a)));
 }
 
-Length SCurveProfile::distanceAt(Time) const { return 0_in; }
+Length SCurveProfile::distanceAt(Time elapsed) const {
+    const double t = std::min(std::max(to_seconds(elapsed), 0.0), to_seconds(totalTime_));
+    const double tJ = to_seconds(jerkTime_);
+    const double tA = to_seconds(accelTime_);
+    const double tC = to_seconds(cruiseTime_);
+    const double j = std::max(maxJerk_, 1e-6);
+    const double a = j * tJ;
+
+    const double ramp = 2.0 * tJ + tA;
+    const double rampDistance = rampTravel(ramp, tJ, tA, j, a);
+    if (t < ramp) {
+        return inches(rampTravel(t, tJ, tA, j, a));
+    }
+    const double rampThenCruise = ramp + tC;
+    if (t < rampThenCruise) {
+        return inches(rampDistance + peakVelocity_ * (t - ramp));
+    }
+    // The decel half mirrors the accel half, so total travel is the cruise plus
+    // twice however far the ramp has got by time `down`.
+    const double down = t - rampThenCruise;
+    return inches(rampDistance + peakVelocity_ * tC + rampTravel(down, tJ, tA, j, a));
+}
+
+double SCurveProfile::rampVelocity(double time, double tJ, double tA, double j, double a) {
+    if (time < tJ) {
+        // Jerk-on: v = j t^2 / 2.
+        return 0.5 * j * time * time;
+    }
+    if (time < tJ + tA) {
+        // Constant accel: v = v1 + a tau.
+        const double tau = time - tJ;
+        return 0.5 * j * tJ * tJ + a * tau;
+    }
+    // Jerk-off: v = v2 + a tau - j tau^2 / 2.
+    const double tau = time - tJ - tA;
+    const double v2 = 0.5 * j * tJ * tJ + a * tA;
+    return v2 + a * tau - 0.5 * j * tau * tau;
+}
+
+double SCurveProfile::rampTravel(double time, double tJ, double tA, double j, double a) {
+    // Closed-form integral of rampVelocity over the same three segments.
+    if (time < tJ) {
+        return j * time * time * time / 6.0;
+    }
+    const double d1 = j * tJ * tJ * tJ / 6.0;
+    if (time < tJ + tA) {
+        const double tau = time - tJ;
+        return d1 + 0.5 * j * tJ * tJ * tau + 0.5 * a * tau * tau;
+    }
+    const double tau = time - tJ - tA;
+    const double v2 = 0.5 * j * tJ * tJ + a * tA;
+    return d1 + 0.5 * j * tJ * tJ * tA + 0.5 * a * tA * tA + v2 * tau + 0.5 * a * tau * tau -
+           j * tau * tau * tau / 6.0;
+}
 
 } // namespace autumn
