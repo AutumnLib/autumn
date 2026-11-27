@@ -93,12 +93,19 @@ void follow(const asset& pathAsset, Length lookahead, Time timeout, bool reverse
     std::uint32_t prevTick = start;
     std::size_t lastIndex = 0;
     Pose lastLookahead(path.front().x, path.front().y);
+    double prevCommand = 0.0;
 
     while (!shouldExit(settings)) {
         if (pros::millis() - start > static_cast<std::uint32_t>(to_milliseconds(timeout))) {
             break;
         }
 
+        // LemLib follows a backwards path by pretending the robot faces the other
+        // way: the pose heading is rotated 180 deg for the geometry, and the two
+        // sides are then swapped and negated. That pair cancels on the drive term
+        // but not on the curvature term, which is what keeps the steering correct.
+        // The old code rotated the heading without swapping sides, so a curved
+        // reversed path drove off with inverted steering.
         Pose pose = settings.poseGetter();
         if (reversed) {
             pose.theta = pose.theta + 180_deg;
@@ -150,8 +157,16 @@ void follow(const asset& pathAsset, Length lookahead, Time timeout, bool reverse
                 }
             }
         }
-        // Path files store 0-127, the same scale LemLib uses.
-        const double power = std::clamp(speed / 127.0, -1.0, 1.0) * maxScale;
+        // Path files store 0-127 on the same scale LemLib's motor commands use.
+        // Convert once into the millivolt command scale the motions run in.
+        double power = std::clamp(speed / 127.0, -1.0, 1.0) * maxScale;
+        // LemLib slews the target speed against the lateral controller's slew,
+        // so a speed drop at a corner is a ramp rather than a step.
+        const double slewStep = std::max(settings.lateralSlew, 0.0);
+        if (slewStep < 1.0e9 && std::isfinite(slewStep)) {
+            power = std::clamp(power, prevCommand - slewStep, prevCommand + slewStep);
+        }
+        prevCommand = power;
         const double track = std::max(to_inches(settings.trackWidth), 1e-3);
         double left = power * (2.0 + curvature * track) / 2.0;
         double right = power * (2.0 - curvature * track) / 2.0;
@@ -161,7 +176,8 @@ void follow(const asset& pathAsset, Length lookahead, Time timeout, bool reverse
             right *= maxScale / peak;
         }
         if (reversed) {
-            driveScaled(*settings.leftMotors, *settings.rightMotors, -(left + right) / 2.0, -(left - right) / 2.0,
+            // Swap sides, then negate both: left output = -right, right = -left.
+            driveScaled(*settings.leftMotors, *settings.rightMotors, -(left + right) / 2.0, (left - right) / 2.0,
                         settings.maxVoltage);
         } else {
             driveScaled(*settings.leftMotors, *settings.rightMotors, (left + right) / 2.0, (left - right) / 2.0,
