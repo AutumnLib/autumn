@@ -74,8 +74,8 @@ void moveToPoint(Pose target, Time timeout, MoveToPointParams params, MotionSett
         const double angularError = headingErrorDeg(faceDeg, robotDeg, TurnDirection::Auto);
         double lateralError = distance * std::cos(noseError * M_PI / 180.0);
 
-        double lateralOut = lateral.calculate(lateralError);
-        double angularOut = close ? 0.0 : angular.calculate(angularError);
+        double lateralOut = lateral.calculate(lateralError) * settings.commandScale;
+        double angularOut = close ? 0.0 : angular.calculate(angularError) * settings.commandScale;
         angularOut = std::clamp(angularOut, -maxAng, maxAng);
         lateralOut = std::clamp(lateralOut, -maxLat, maxLat);
         if (!close) {

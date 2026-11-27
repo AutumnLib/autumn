@@ -123,17 +123,20 @@ public:
     }
 
     MotionSettings motionSettings() {
-        return MotionSettings{
-            .poseGetter = [this] { return getPose(); },
-            .leftMotors = &left_,
-            .rightMotors = &right_,
-            .trackWidth = context_.drivetrain().trackWidth(),
-            .lateralPid = &lateralPid_,
-            .angularPid = &angularPid_,
-            .leftVelocityPid = &leftVelocityPid_,
-            .rightVelocityPid = &rightVelocityPid_,
-            .driveFeedforward = &driveFeedforward_,
-        };
+        MotionSettings out;
+        out.poseGetter = [this] { return getPose(); };
+        out.leftMotors = &left_;
+        out.rightMotors = &right_;
+        out.trackWidth = context_.drivetrain().trackWidth();
+        out.lateralPid = &lateralPid_;
+        out.angularPid = &angularPid_;
+        out.leftVelocityPid = &leftVelocityPid_;
+        out.rightVelocityPid = &rightVelocityPid_;
+        out.driveFeedforward = &driveFeedforward_;
+        // Motions run in millivolts; set it explicitly so the struct default can
+        // never drift out from under this facade again.
+        out.maxVoltage = 12000.0;
+        return out;
     }
 
     void moveToPoint(Pose target, Time timeout, MoveToPointParams params = {}) {
