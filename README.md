@@ -77,6 +77,7 @@ chassis_.follow(example_txt, 15, 6000);
 | Distribution | `liblemlib.a` | `libautumn.a` |
 | Hardware | User-owned | `templates/config.hpp` via `config()` |
 | Advanced | PP, boomerang | PP + boomerang `moveToPose`. LTV and MCL are deferred. Jerk-limited S-curve exists as a profile primitive. |
+| Drive curve | `ExpoDriveCurve` saturates near `minOutput` at full stick | Same parameters, but full stick maps to full scale (intentional divergence) |
 
 ## Documentation
 

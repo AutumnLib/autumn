@@ -44,6 +44,28 @@ TEST_CASE("ExpoDriveCurve maps a full stick to full scale") {
     CHECK(deadband.curve(10.0) == doctest::Approx(0.0));
 }
 
+TEST_CASE("ExpoDriveCurve deliberately diverges from the LemLib 0.5.6 shape") {
+    // This is documented as intentional in docs/index.md. LemLib's curve stays
+    // near minOutput even at full deflection; Autumn maps full stick to full
+    // scale. The test pins the divergence so it cannot change silently, and pins
+    // the properties a driver actually relies on: monotonic, and continuous at
+    // the deadband edge.
+    ExpoDriveCurve curve(3, 10, 1.019);
+    CHECK(curve.curve(127.0) == autumn::test::absApprox(127.0, 0.01));
+    // LemLib 0.5.6 with the same arguments returns about 10.9 here.
+    CHECK(curve.curve(127.0) > 60.0);
+    CHECK(curve.curve(3.0) == doctest::Approx(0.0));
+    double previous = 0.0;
+    for (double input = 3.0; input <= 127.0; input += 1.0) {
+        const double output = curve.curve(input);
+        CHECK(output >= previous);
+        previous = output;
+    }
+    // Jump straight past the deadband lands near minOutput, not at full scale.
+    CHECK(curve.curve(4.0) < 20.0);
+    CHECK(curve.curve(4.0) >= 10.0);
+}
+
 TEST_CASE("arcade preserves the left/right ratio when a side would saturate") {
     pros::MotorGroup left{1};
     pros::MotorGroup right{2};

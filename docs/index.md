@@ -19,7 +19,8 @@ Autumn is a VEX V5 PROS autonomous library template.
 - **Core**: `Autumn`, `AutumnContext`, `AbstractConfig`, `AbstractAutonomous`, `AbstractDriver`
 - **Motion**: `motion_handler`, free-function motions, `Chassis` facade
 - **Localization**: `Odometry` (non-copyable — pass by reference). `ParticleFilter` is a deferred MCL stub and is not the pose source.
-- **Control**: dt-based PID (LemLib 0.5 per-tick gains convert at 10 ms as kI×100 and kD/100), feedforward, trapezoid and jerk-limited S-curve profiles. `LtvUnicycleController` is a documented stub, not used by `follow`. Composable `Controller<In,Out>` hooks remain.
+- **Control**: dt-based PID (LemLib 0.5 per-tick gains convert at 10 ms as kI×100 and kD/100), feedforward, trapezoid and jerk-limited S-curve profiles. `LtvUnicycleController` is a documented stub, not used by `follow`. Composable `Controller<In,Out>` hooks remain. Motions command millivolts; `MotionSettings::commandScale` lets LemLib-style gains (tuned on the 0-127 command scale) drive the same fraction of full power.
+- **Drive curves**: `ExpoDriveCurve` is an intentional divergence from LemLib 0.5.6. It maps full stick to full scale (`curve(127) == 127`), where LemLib's curve stays near `minOutput` even at full deflection. Deadband and `minOutput` mean the same thing; the shape between them differs, so LemLib tuning notes do not transfer directly.
 - **Hardware HAL**: `Encoder` / `IMU` / `MotorGroup` / `AdiEncoder` facades with disconnect resilience + mutex
 - **Logging**: `logger` (terminal/SD sinks) + brain `ErrorCode`s raised at HAL/motion sites
 - **UI**: `AutonSelector` liblvgl menu owns screen (LLEMU fallback; do not mix)
