@@ -28,11 +28,23 @@ struct MotionSettings {
     // default inline behavior for back-compat.
     ScalarController* lateralController = nullptr;
     ScalarController* angularController = nullptr;
-    // Full-scale command in the same units as PID output. 1.0 means normalized ±1.
-    // Converted to ±12000 mV at the motor. Joystick code still uses ±127 and scales once.
-    double maxVoltage = 1.0;
-    double lateralSlew = 5.0;
-    double angularSlew = 5.0;
+    // Full-scale command in millivolts, matching the PID output unit. Motions clamp
+    // to the param fractions of this value and hand millivolts to the motor.
+    double maxVoltage = 12000.0;
+    // Command change allowed per 10 ms tick, in millivolts. Defaults match the
+    // LemLib 0.5 rate of 5 per tick on the 0-127 scale (5/127 of full scale).
+    double lateralSlew = 12000.0 * 5.0 / 127.0;
+    double angularSlew = 12000.0 * 5.0 / 127.0;
+    // Settle windows used by the motions' exit tests. The defaults are the values
+    // LemLib 0.5 uses for moveToPose settling.
+    Length lateralSettleError = 1_in;
+    Angle angularSettleError = 8_deg;
+    // LemLib 0.5 controller gains are tuned against the 0-127 motor command scale,
+    // but PID output here is compared against millivolt limits. Scaling the raw
+    // controller output by this factor (12000 / 127 ~ 94.5) lets LemLib-style
+    // gains drive the same fraction of full power. Set to 1 to work in millivolts
+    // directly.
+    double commandScale = 12000.0 / 127.0;
 };
 
 void tankDrive(pros::MotorGroup& left, pros::MotorGroup& right, double leftVoltage, double rightVoltage);
