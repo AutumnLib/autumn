@@ -8,12 +8,16 @@ namespace autumn {
 
 class PID {
 public:
+    /// @param windupRange Error band, in the same units as the error passed to update().
+    ///        While |error| is larger than this, the integral is reset to 0 (LemLib semantics).
+    ///        0 disables the limit and the integral always accumulates.
     PID(double kP, double kI, double kD, double windupRange = 0.0, bool signFlipReset = false);
 
     double update(double error);
     double update(double error, Time deltaTime);
 
     void setGains(double kP, double kI, double kD);
+    /// Sets the integral reset band. See the constructor for units and the 0 = disabled rule.
     void setWindupRange(double windupRange);
     void setSignFlipReset(bool signFlipReset);
 

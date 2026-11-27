@@ -110,29 +110,33 @@ public:
     void curvature(double forward, double turn) {
         const double f = throttleCurve_.curve(forward);
         const double t = steerCurve_.curve(turn);
-        if (std::abs(t) < 1e-3) {
-            tankDrive(left_, right_, f, f);
-            return;
+        double leftOut = 0.0;
+        double rightOut = 0.0;
+        if (std::abs(f) < 1e-3) {
+            leftOut = t;
+            rightOut = -t;
+        } else {
+            leftOut = f + std::abs(f) * t / 127.0;
+            rightOut = f - std::abs(f) * t / 127.0;
         }
-        const double track = context_.drivetrain().trackWidthIn;
-        const double ratio = (2.0 + std::abs(t) / 127.0) / (2.0 - std::abs(t) / 127.0);
-        const double leftOut = f * ratio;
-        const double rightOut = f;
-        tankDrive(left_, right_, leftOut, rightOut);
+        driveScaled(left_, right_, (leftOut + rightOut) / 2.0, (leftOut - rightOut) / 2.0, 127.0);
     }
 
     MotionSettings motionSettings() {
-        return MotionSettings{
-            .poseGetter = [this] { return getPose(); },
-            .leftMotors = &left_,
-            .rightMotors = &right_,
-            .trackWidth = context_.drivetrain().trackWidth(),
-            .lateralPid = &lateralPid_,
-            .angularPid = &angularPid_,
-            .leftVelocityPid = &leftVelocityPid_,
-            .rightVelocityPid = &rightVelocityPid_,
-            .driveFeedforward = &driveFeedforward_,
-        };
+        MotionSettings out;
+        out.poseGetter = [this] { return getPose(); };
+        out.leftMotors = &left_;
+        out.rightMotors = &right_;
+        out.trackWidth = context_.drivetrain().trackWidth();
+        out.lateralPid = &lateralPid_;
+        out.angularPid = &angularPid_;
+        out.leftVelocityPid = &leftVelocityPid_;
+        out.rightVelocityPid = &rightVelocityPid_;
+        out.driveFeedforward = &driveFeedforward_;
+        // Motions run in millivolts; set it explicitly so the struct default can
+        // never drift out from under this facade again.
+        out.maxVoltage = 12000.0;
+        return out;
     }
 
     void moveToPoint(Pose target, Time timeout, MoveToPointParams params = {}) {

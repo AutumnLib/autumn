@@ -7,6 +7,7 @@
 namespace autumn {
 
 enum class TurnDirection { Auto, Clockwise, CounterClockwise };
+enum class SwingSide { Left, Right };
 
 struct TurnToParams {
     TurnDirection direction = TurnDirection::Auto;
@@ -17,5 +18,7 @@ struct TurnToParams {
 
 void turnToHeading(Angle target, Time timeout, TurnToParams params, MotionSettings settings);
 void turnToPoint(Pose target, Time timeout, TurnToParams params, MotionSettings settings);
+void swingToHeading(Angle target, SwingSide lockedSide, Time timeout, TurnToParams params, MotionSettings settings);
+void swingToPoint(Pose target, SwingSide lockedSide, Time timeout, TurnToParams params, MotionSettings settings);
 
 } // namespace autumn

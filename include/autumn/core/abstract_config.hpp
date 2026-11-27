@@ -20,8 +20,9 @@ struct DrivetrainSpec {
 };
 
 struct PIDDefaults {
-    PID lateral{10.0, 0.0, 3.0, 5.0, true};
-    PID angular{3.0, 0.0, 20.0, 5.0, true};
+    // dt-based PID. LemLib 0.5 per-tick gains convert at 10 ms as kI*100 and kD/100.
+    PID lateral{10.0, 0.0, 0.03, 5.0, true};
+    PID angular{3.0, 0.0, 0.2, 5.0, true};
 };
 
 struct AbstractConfig {

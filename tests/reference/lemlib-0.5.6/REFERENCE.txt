@@ -1,0 +1,9 @@
+Unmodified copies of LemLib v0.5.6, fetched from
+https://github.com/LemLib/LemLib/tree/v0.5.6
+for the Autumn assessment. Not compiled and not part of the template zip.
+License: LICENSE (MIT).
+
+Assertion contract for tests:
+- Frame matches LemLib and path.jerry.io: +x right, +y forward, heading 0 = +y, clockwise positive.
+- Length is inches. Headings in the reference sources are degrees.
+- pros::MotorGroup::move_voltage takes millivolts. Full scale is +-12000.

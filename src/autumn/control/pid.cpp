@@ -54,8 +54,10 @@ double PID::update(double error, Time deltaTime) {
 
     integral_ += error * deltaSeconds;
 
-    if (windupRange_ > 0.0) {
-        integral_ = std::clamp(integral_, -windupRange_, windupRange_);
+    // LemLib: outside the windup band the integral is discarded, not clamped.
+    // A range of 0 leaves integration always enabled.
+    if (windupRange_ > 0.0 && std::abs(error) > windupRange_) {
+        integral_ = 0.0;
     }
 
     const double derivative = (error - previousError_) / deltaSeconds;

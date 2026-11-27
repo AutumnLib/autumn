@@ -73,6 +73,10 @@ Testing/
 # Architecture Memo
 ARCHITECTURE.md
 
+# Host assessment artifacts
+tests/build/
+ASSESSMENT.md
+
 # Misc
 .githooks/
 scripts/

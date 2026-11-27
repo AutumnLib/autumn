@@ -49,7 +49,9 @@ Length TrackingWheel::readAndResetDelta(Angle deltaHeading) {
     }
     double delta = to_inches(current) - previousPosition_;
     previousPosition_ = to_inches(current);
-    delta -= to_inches(offset_) * to_radians(deltaHeading);
+    // Center travel = wheel travel + offset * clockwise heading change.
+    // A wheel to the right moves backward during a clockwise turn.
+    delta += to_inches(offset_) * to_radians(deltaHeading);
     return inches(delta);
 }
 

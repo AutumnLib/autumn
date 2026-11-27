@@ -46,9 +46,13 @@ void waitUntilPoint(Pose target, Length radius, std::function<Pose()> poseGetter
 }
 
 void waitUntilDistance(Length distance, std::function<Pose()> poseGetter) {
-    const Pose start = poseGetter();
+    Pose previous = poseGetter();
+    double traveled = 0.0;
     while (isMoving()) {
-        if (poseGetter().distance(start) >= distance) {
+        const Pose current = poseGetter();
+        traveled += to_inches(current.distance(previous));
+        previous = current;
+        if (inches(traveled) >= distance) {
             return;
         }
         pros::delay(5);

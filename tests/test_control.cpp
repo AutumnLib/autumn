@@ -1,0 +1,135 @@
+#include "support.hpp"
+#include "doctest.h"
+
+#include "autumn/control/exit_condition.hpp"
+#include "autumn/control/feedforward.hpp"
+#include "autumn/control/pid.hpp"
+#include "autumn/motion/profile/trapezoid_profile.hpp"
+#include "autumn/util/filters.hpp"
+
+#include "pros/rtos.hpp"
+
+using namespace autumn;
+
+TEST_CASE("windupRange resets the integral outside the band") {
+    pros::testing::resetClock();
+    PID pid(0.0, 1.0, 0.0, 5.0, false);
+
+    pid.update(100.0, 10_ms);
+    const double outside = pid.update(100.0, 10_ms);
+    CHECK(pid.getIntegral() == doctest::Approx(0.0));
+    CHECK(outside == doctest::Approx(0.0));
+
+    pid.reset();
+    pid.update(2.0, 10_ms);
+    pid.update(2.0, 10_ms);
+    CHECK(pid.getIntegral() == doctest::Approx(2.0 * 0.01));
+
+    PID open(0.0, 1.0, 0.0, 0.0, false);
+    open.update(100.0, 10_ms);
+    open.update(100.0, 10_ms);
+    CHECK(open.getIntegral() == doctest::Approx(100.0 * 0.01));
+}
+
+TEST_CASE("sign flip still clears the integral") {
+    PID pid(0.0, 1.0, 0.0, 0.0, true);
+    pid.update(4.0, 10_ms);
+    pid.update(4.0, 10_ms);
+    CHECK(pid.getIntegral() > 0.0);
+    pid.update(-1.0, 10_ms);
+    // The previous integral is dropped, then the new sample is integrated.
+    CHECK(pid.getIntegral() == doctest::Approx(-0.01));
+}
+
+// LemLib 0.5 gains are per 10 ms tick. Autumn divides by dt, so the same kD is ~100x stronger.
+// Matching at 10 ms means kI_autumn = kI_lemlib * 100 and kD_autumn = kD_lemlib / 100.
+TEST_CASE("default derivative gain matches a LemLib per-tick kD at 10 ms") {
+    // dt PID: kD_autumn = kD_lemlib / 100 at a 10 ms loop.
+    PID pid(0.0, 0.0, 0.03, 0.0, false);
+    pid.update(0.0, 10_ms);
+    const double output = pid.update(10.0, 10_ms);
+    CHECK(output == autumn::test::absApprox(30.0, 1e-6));
+}
+
+TEST_CASE("slew limiter steps by at most maxDelta") {
+    SlewRateLimiter limiter(5.0);
+    CHECK(limiter.filter(20.0, 0.0) == doctest::Approx(5.0));
+    CHECK(limiter.filter(-20.0, 0.0) == doctest::Approx(-5.0));
+    CHECK(limiter.filter(3.0, 0.0) == doctest::Approx(3.0));
+}
+
+TEST_CASE("exit condition holds, then resets when the error leaves the band") {
+    ExitCondition exit(1.0, 30_ms);
+    CHECK_FALSE(exit.update(0.5, 10_ms));
+    CHECK_FALSE(exit.update(0.5, 10_ms));
+    CHECK(exit.update(0.5, 10_ms));
+
+    exit.reset();
+    CHECK_FALSE(exit.update(0.2, 20_ms));
+    CHECK_FALSE(exit.update(5.0, 10_ms));
+    CHECK_FALSE(exit.update(0.2, 20_ms));
+    CHECK(exit.update(0.2, 10_ms));
+}
+
+TEST_CASE("feedforward keeps the static sign and the velocity and accel terms") {
+    Feedforward ff(2.0, 0.5, 1.0);
+    CHECK(ff.calculate(4.0, 2.0) == doctest::Approx(1.0 + 8.0 + 1.0));
+    CHECK(ff.calculate(-4.0, 0.0) == doctest::Approx(-1.0 - 8.0));
+    CHECK(ff.calculate(0.0, 3.0) == doctest::Approx(1.5));
+}
+
+TEST_CASE("trapezoid profile ends on the requested distance for a long move") {
+    TrapezoidProfile profile(ips(10.0), 10.0);
+    profile.recalculate(30_in);
+    CHECK(to_inches(profile.distanceAt(profile.totalTime())) == autumn::test::absApprox(30.0, 0.05));
+    CHECK(profile.velocityAt(profile.totalTime()).value() == autumn::test::absApprox(0.0, 0.05));
+}
+
+TEST_CASE("short trapezoid still covers the requested distance") {
+    TrapezoidProfile profile(ips(10.0), 10.0);
+    profile.recalculate(2_in);
+    CHECK(to_inches(profile.distanceAt(profile.totalTime())) == autumn::test::absApprox(2.0, 0.05));
+}
+
+TEST_CASE("SCurveProfile jerk changes the duration and the stop is continuous") {
+    SCurveProfile gentle(ips(48.0), 24.0, 50.0);
+    SCurveProfile sharp(ips(48.0), 24.0, 5000.0);
+    gentle.recalculate(80_in);
+    sharp.recalculate(80_in);
+    CHECK(to_milliseconds(gentle.totalTime()) > to_milliseconds(sharp.totalTime()) + 50.0);
+
+    const Time stop = gentle.totalTime();
+    const double beforeStop = gentle.velocityAt(milliseconds(std::max(0.0, to_milliseconds(stop) - 30.0))).value();
+    const double atStop = gentle.velocityAt(stop).value();
+    CHECK(std::abs(beforeStop - atStop) < 15.0);
+    CHECK(atStop == doctest::Approx(0.0).epsilon(0.01));
+}
+
+TEST_CASE("SCurveProfile distanceAt reports the distance it was asked to cover") {
+    // distanceAt used to return a hard-coded zero while velocityAt was correct,
+    // which made the profile look like it never moved.
+    for (double requested : {0.5, 2.0, 12.0, 80.0}) {
+        SCurveProfile profile(ips(48.0), 24.0, 50.0);
+        profile.recalculate(inches(requested));
+        CAPTURE(requested);
+        CHECK(to_inches(profile.distanceAt(profile.totalTime())) == autumn::test::absApprox(requested, 0.1));
+        // Monotonic and consistent with the velocity curve.
+        CHECK(to_inches(profile.distanceAt(0_ms)) == doctest::Approx(0.0));
+        const Time midpoint = milliseconds(to_milliseconds(profile.totalTime()) / 2.0);
+        CHECK(to_inches(profile.distanceAt(midpoint)) > 0.0);
+        CHECK(to_inches(profile.distanceAt(midpoint)) < requested);
+    }
+}
+
+TEST_CASE("SCurveProfile distance and velocity agree on peak speed") {
+    SCurveProfile profile(ips(48.0), 24.0, 200.0);
+    profile.recalculate(60_in);
+    // Integrate the velocity curve numerically and compare with distanceAt.
+    double integrated = 0.0;
+    const double totalMs = to_milliseconds(profile.totalTime());
+    for (double t = 0.0; t < totalMs; t += 0.5) {
+        integrated += profile.velocityAt(milliseconds(t)).value() * 0.0005;
+    }
+    CHECK(integrated == autumn::test::absApprox(60.0, 0.2));
+    CHECK(to_inches(profile.distanceAt(profile.totalTime())) == autumn::test::absApprox(integrated, 0.2));
+}

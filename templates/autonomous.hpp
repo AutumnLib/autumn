@@ -48,9 +48,9 @@ private:
 
     void skillsAuto() {
         chassis_.setPose(0, 0, 0);
-        autumn::FollowParams ltvParams;
-        ltvParams.useLtvTracking = true;
-        chassis_.follow(example_txt, 15, 6000, false, ltvParams);
+        // LTV unicycle tracking is deferred. follow() is pure pursuit.
+        // Boomerang is chassis_.moveToPose, not a follow mode.
+        chassis_.follow(example_txt, 15, 6000, false);
         chassis_.waitUntilDone();
     }
 
