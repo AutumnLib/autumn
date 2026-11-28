@@ -203,6 +203,14 @@ public:
 
     void waitUntilDistance(double distanceInches) { waitUntilDistance(inches(distanceInches)); }
 
+    void waitUntilTraveled(Length distance) { motion_handler::waitUntilTraveled(distance); }
+
+    void waitUntilTraveled(double distanceInches) { waitUntilTraveled(inches(distanceInches)); }
+
+    void waitUntilTurned(Angle amount) { motion_handler::waitUntilTurned(amount); }
+
+    void waitUntilTurned(double degreesAmount) { waitUntilTurned(degrees(degreesAmount)); }
+
     void cancel() { motion_handler::cancel(); }
 
 private:

@@ -142,9 +142,21 @@ public:
         out.angularSlew = slewFor(angularSettings_);
         if (lateralSettings_.smallError > 0.0) {
             out.lateralSettleError = inches(lateralSettings_.smallError);
+            out.lateralSmallSettleError = inches(lateralSettings_.smallError);
+            out.lateralSmallSettleTime = milliseconds(lateralSettings_.smallErrorTimeoutMs);
+        }
+        if (lateralSettings_.largeError > 0.0) {
+            out.lateralLargeSettleError = inches(lateralSettings_.largeError);
+            out.lateralLargeSettleTime = milliseconds(lateralSettings_.largeErrorTimeoutMs);
         }
         if (angularSettings_.smallError > 0.0) {
             out.angularSettleError = degrees(angularSettings_.smallError);
+            out.angularSmallSettleError = degrees(angularSettings_.smallError);
+            out.angularSmallSettleTime = milliseconds(angularSettings_.smallErrorTimeoutMs);
+        }
+        if (angularSettings_.largeError > 0.0) {
+            out.angularLargeSettleError = degrees(angularSettings_.largeError);
+            out.angularLargeSettleTime = milliseconds(angularSettings_.largeErrorTimeoutMs);
         }
         return out;
     }

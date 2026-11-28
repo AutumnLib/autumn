@@ -265,6 +265,37 @@ TEST_CASE("IMU heading wrap at 0/360 does not lose travel") {
     }
 }
 
+TEST_CASE("odometry updateCount increments each tick") {
+    pros::Imu imu(1);
+    OdomConfig config;
+    config.imu = &imu;
+    Odometry odometry(config);
+    imu.set_rotation(0.0);
+    CHECK(odometry.updateCount() == 0);
+    odometry.update();
+    CHECK(odometry.updateCount() == 1);
+    odometry.update();
+    CHECK(odometry.updateCount() == 2);
+}
+
+TEST_CASE("wheel delta glitches are rejected and do not jump the pose") {
+    pros::MotorGroup left{1};
+    pros::MotorGroup right{2};
+    OdomConfig config;
+    config.leftMotors = &left;
+    config.rightMotors = &right;
+    config.wheelDiameter = 4_in;
+    config.trackWidth = 10.5_in;
+    Odometry odometry(config);
+    left.setPositionDegrees(0.0);
+    right.setPositionDegrees(0.0);
+    odometry.update();
+    left.setPositionDegrees(10000.0);
+    right.setPositionDegrees(10000.0);
+    odometry.update();
+    CHECK(to_inches(odometry.getPose().distance(Pose{})) < 2.0);
+}
+
 TEST_CASE("heading keeps accumulating past a full turn with an IMU") {
     pros::Imu imu(1);
     pros::Rotation vertical(2);

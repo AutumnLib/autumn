@@ -10,6 +10,7 @@
 #include "pros/motor_group.hpp"
 #include "pros/rtos.hpp"
 
+#include <cstdint>
 #include <memory>
 
 namespace autumn {
@@ -100,6 +101,9 @@ public:
     // One odometry tick. updateLoop() calls this, and host tests call it directly.
     void update();
 
+    // Monotonic counter incremented every successful update (NlGanma odom seq pattern).
+    std::uint32_t updateCount() const { return updateCount_; }
+
 private:
     void updateLoop();
     void integrate(Length deltaLeft, Length deltaRight, Length deltaVertical, Angle deltaHeading);
@@ -119,6 +123,9 @@ private:
     double prevLeft_ = 0.0;
     double prevRight_ = 0.0;
     bool hasPrevDrive_ = false;
+    std::uint32_t updateCount_ = 0;
+
+    static constexpr double kMaxWheelDeltaInPerTick = 24.0;
 };
 
 } // namespace autumn

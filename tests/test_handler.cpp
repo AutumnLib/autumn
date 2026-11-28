@@ -47,6 +47,40 @@ TEST_CASE("cancel stops the running motion") {
     CHECK(ticks >= 1);
 }
 
+TEST_CASE("waitUntilTraveled tracks path length from the running motion") {
+    pros::testing::resetClock();
+    pros::testing::setDelayHook(nullptr);
+    setMotionCancelled(false);
+    resetMotionProgress();
+    double y = 0.0;
+    motion_handler::move([&] {
+        for (int i = 0; i < 40; ++i) {
+            y += 0.75;
+            sampleMotionProgress(Pose(0.0, y, 0.0));
+            pros::delay(10);
+        }
+    });
+    motion_handler::waitUntilTraveled(20_in);
+    CHECK(motionPathDistance() >= 19.0);
+}
+
+TEST_CASE("waitUntilTurned tracks heading change from the running motion") {
+    pros::testing::resetClock();
+    pros::testing::setDelayHook(nullptr);
+    setMotionCancelled(false);
+    resetMotionProgress();
+    double heading = 0.0;
+    motion_handler::move([&] {
+        for (int i = 0; i < 30; ++i) {
+            heading += 3.0;
+            sampleMotionProgress(Pose(0.0, 0.0, heading));
+            pros::delay(10);
+        }
+    });
+    motion_handler::waitUntilTurned(45_deg);
+    CHECK(motionTurnDegrees() >= 44.0);
+}
+
 TEST_CASE("waitUntilDistance uses distance traveled, not straight-line displacement") {
     pros::testing::resetClock();
     pros::testing::setDelayHook(nullptr);
