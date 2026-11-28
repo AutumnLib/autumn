@@ -374,6 +374,53 @@ TEST_CASE("follow slews its target speed instead of stepping it") {
     CHECK(largestStep < 2500);
 }
 
+TEST_CASE("min lateral speed with chaining leaves voltage on after moveToPose") {
+    pros::testing::resetClock();
+    setMotionCancelled(false);
+    pros::MotorGroup left{1};
+    pros::MotorGroup right{2};
+    PID lateral(0.0, 0.0, 0.0);
+    PID angular(0.0, 0.0, 0.0);
+    std::int32_t leftVoltage = 0;
+    pros::testing::setDelayHook([&](std::uint32_t) { leftVoltage = left.commandedVoltage(); });
+    MotionSettings settings;
+    settings.poseGetter = [] { return Pose(0.0, 0.0, 0.0); };
+    settings.leftMotors = &left;
+    settings.rightMotors = &right;
+    settings.lateralPid = &lateral;
+    settings.angularPid = &angular;
+    settings.maxVoltage = 12000.0;
+    settings.lateralSlew = 1.0e9;
+    settings.angularSlew = 1.0e9;
+    MoveToPoseParams params;
+    params.minLateralSpeed = Number(0.5);
+    moveToPose(Pose(0.0, 6.0, 90.0), 30_ms, params, settings);
+    pros::testing::setDelayHook(nullptr);
+    CHECK(std::abs(leftVoltage) >= 5000);
+}
+
+TEST_CASE("stall exit ends a motion when the robot stops making progress") {
+    pros::testing::resetClock();
+    setMotionCancelled(false);
+    pros::MotorGroup left{1};
+    pros::MotorGroup right{2};
+    PID lateral(10.0, 0.0, 0.0);
+    PID angular(0.0, 0.0, 0.0);
+    int ticks = 0;
+    pros::testing::setDelayHook([&](std::uint32_t) { ++ticks; });
+    MotionSettings settings;
+    settings.poseGetter = [] { return Pose(0.0, 0.0, 0.0); };
+    settings.leftMotors = &left;
+    settings.rightMotors = &right;
+    settings.lateralPid = &lateral;
+    settings.angularPid = &angular;
+    settings.stallExitTime = 80_ms;
+    settings.stallGraceMs = 20.0;
+    moveToPoint(Pose(0.0, 48.0, 0.0), 3000_ms, {}, settings);
+    pros::testing::setDelayHook(nullptr);
+    CHECK(ticks < 200);
+}
+
 TEST_CASE("swingToHeading holds the named side still and drives the other") {
     // SwingSide names the side that stays put. Driving both sides is a point
     // turn, and driving the named side would rotate about the wrong corner.

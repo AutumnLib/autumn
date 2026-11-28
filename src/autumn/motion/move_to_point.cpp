@@ -1,3 +1,4 @@
+#include "autumn/control/exit_condition.hpp"
 #include "autumn/motion/motion_math.hpp"
 #include "autumn/motion/move_to_point.hpp"
 
@@ -40,12 +41,23 @@ void moveToPoint(Pose target, Time timeout, MoveToPointParams params, MotionSett
     const Pose initial = settings.poseGetter();
     target.theta = initial.angleTo(target);
 
+    ExitCondition lateralLarge(to_inches(settings.lateralLargeSettleError), settings.lateralLargeSettleTime);
+    StallTracker stall;
+    stall.arm(start);
+    Pose lastPose = initial;
+    resetMotionProgress();
+    sampleMotionProgress(initial);
+
     while (!shouldExit(settings)) {
         if (pros::millis() - start > static_cast<std::uint32_t>(to_milliseconds(timeout))) {
             break;
         }
 
         const Pose pose = settings.poseGetter();
+        sampleMotionProgress(pose);
+        if (stall.update(settings, pros::millis(), pose, lastPose)) {
+            break;
+        }
         const double distance = to_inches(pose.distance(target));
         if (distance <= to_inches(params.earlyExitRange) && to_inches(params.earlyExitRange) > 0.0) {
             break;
@@ -73,6 +85,7 @@ void moveToPoint(Pose target, Time timeout, MoveToPointParams params, MotionSett
         const double robotDeg = to_degrees(pose.theta) + (params.reversed ? 180.0 : 0.0);
         const double angularError = headingErrorDeg(faceDeg, robotDeg, TurnDirection::Auto);
         double lateralError = distance * std::cos(noseError * M_PI / 180.0);
+        lateralLarge.update(std::abs(lateralError), 10_ms);
 
         double lateralOut = lateral.calculate(lateralError) * settings.commandScale;
         double angularOut = close ? 0.0 : angular.calculate(angularError) * settings.commandScale;
@@ -83,9 +96,9 @@ void moveToPoint(Pose target, Time timeout, MoveToPointParams params, MotionSett
         }
         angularOut = std::clamp(angularOut, prevAngular - settings.angularSlew, prevAngular + settings.angularSlew);
 
-        if (!close && minLat > 0.0 && std::abs(lateralOut) < minLat) {
+        if (!close && minLat > 0.0) {
             const double sign = (params.reversed || lateralError < 0.0) ? -1.0 : 1.0;
-            lateralOut = sign * minLat;
+            lateralOut = clampMinLateral(lateralOut, minLat, sign);
         }
 
         if (close && std::abs(lateralError) < 1.0) {
@@ -98,7 +111,9 @@ void moveToPoint(Pose target, Time timeout, MoveToPointParams params, MotionSett
         pros::Task::delay_until(&prevTick, 10);
     }
 
-    tankDrive(*settings.leftMotors, *settings.rightMotors, 0, 0);
+    if (minLat <= 0.0) {
+        tankDrive(*settings.leftMotors, *settings.rightMotors, 0, 0);
+    }
 }
 
 } // namespace autumn

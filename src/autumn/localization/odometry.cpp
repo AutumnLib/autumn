@@ -127,6 +127,12 @@ void Odometry::update() {
         if (hasPrevDrive_) {
             deltaLeft = inches((left - prevLeft_) * wheelCirc);
             deltaRight = inches((right - prevRight_) * wheelCirc);
+            if (std::abs(to_inches(deltaLeft)) > kMaxWheelDeltaInPerTick) {
+                deltaLeft = 0_in;
+            }
+            if (std::abs(to_inches(deltaRight)) > kMaxWheelDeltaInPerTick) {
+                deltaRight = 0_in;
+            }
         }
         prevLeft_ = left;
         prevRight_ = right;
@@ -153,11 +159,20 @@ void Odometry::update() {
         strafe = config_.horizontalWheel->readAndResetDelta(deltaHeading);
     }
 
+    if (hasImu && std::abs(to_degrees(deltaHeading)) > 170.0) {
+        // Reject an impossible IMU step; fall back to drivetrain heading if available.
+        deltaHeading = 0_rad;
+        if (haveDrive && hasPrevDrive_) {
+            const double track = to_inches(config_.trackWidth);
+            if (track > 1e-6) {
+                deltaHeading = radians((to_inches(deltaLeft) - to_inches(deltaRight)) / track);
+            }
+        }
+    }
+
     mutex_.take();
     integrate(strafe, 0_in, forward, deltaHeading);
-    // integrate() already folded deltaHeading into the pose heading. Nothing to
-    // overwrite here: the old code assigned the raw IMU value, which reset the
-    // accumulated heading and reintroduced the sensor's 0..360 wrap.
+    ++updateCount_;
     mutex_.give();
 }
 

@@ -38,6 +38,12 @@ void runTurn(Angle target, Time timeout, TurnToParams params, MotionSettings set
     const std::uint32_t start = pros::millis();
     std::uint32_t prev = start;
     double prevPower = 0.0;
+    double prevError = 0.0;
+    StallTracker stall;
+    stall.arm(start);
+    Pose lastPose = settings.poseGetter();
+    resetMotionProgress();
+    sampleMotionProgress(lastPose);
     // LemLib holds directional error only until the robot first crosses the target.
     // Past that point asking for "clockwise" would add a full turn of error forever,
     // so both the controller and the exit test switch back to the shortest angle.
@@ -49,6 +55,10 @@ void runTurn(Angle target, Time timeout, TurnToParams params, MotionSettings set
             break;
         }
         const Pose pose = settings.poseGetter();
+        sampleMotionProgress(pose);
+        if (stall.update(settings, pros::millis(), pose, lastPose)) {
+            break;
+        }
         const double shortestError =
             headingErrorDeg(to_degrees(target), to_degrees(pose.theta), TurnDirection::Auto);
         if (!prevShortestError.has_value()) {
@@ -73,11 +83,11 @@ void runTurn(Angle target, Time timeout, TurnToParams params, MotionSettings set
         power = std::clamp(power, -maxOut, maxOut);
         const double step = std::max(settings.angularSlew, 0.0);
         power = std::clamp(power, prevPower - step, prevPower + step);
-        if (power > 0.0 && power < minOut) {
-            power = minOut;
-        } else if (power < 0.0 && power > -minOut) {
-            power = -minOut;
+        if (minOut > 0.0 && prevError != 0.0 && (errorDeg > 0.0) != (prevError > 0.0)) {
+            break;
         }
+        prevError = errorDeg;
+        power = clampMinLateral(power, minOut);
         prevPower = power;
 
         if (locked == nullptr) {
@@ -98,7 +108,9 @@ void runTurn(Angle target, Time timeout, TurnToParams params, MotionSettings set
     if (heldMotors != nullptr) {
         heldMotors->set_brake_mode(previousBrakeMode);
     }
-    tankDrive(*settings.leftMotors, *settings.rightMotors, 0, 0);
+    if (minOut <= 0.0) {
+        tankDrive(*settings.leftMotors, *settings.rightMotors, 0, 0);
+    }
 }
 
 } // namespace

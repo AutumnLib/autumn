@@ -1,3 +1,4 @@
+#include "autumn/control/exit_condition.hpp"
 #include "autumn/motion/motion_math.hpp"
 #include "autumn/motion/move_to_pose.hpp"
 
@@ -33,19 +34,35 @@ void moveToPose(Pose target, Time timeout, MoveToPoseParams params, MotionSettin
     lateral.reset();
     angular.reset();
 
-    const double maxLat = settings.maxVoltage * std::max(0.0, params.maxLateralSpeed.value());
+    const Length lateralSmallTol =
+        settings.lateralSmallSettleError > 0_in ? settings.lateralSmallSettleError : settings.lateralSettleError;
+    const Length lateralLargeTol =
+        settings.lateralLargeSettleError > 0_in ? settings.lateralLargeSettleError : inches(3.0);
+    const Angle angularSmallTol =
+        settings.angularSmallSettleError > 0_deg ? settings.angularSmallSettleError : settings.angularSettleError;
+    const Angle angularLargeTol =
+        settings.angularLargeSettleError > 0_deg ? settings.angularLargeSettleError : degrees(3.0);
+
+    ExitCondition lateralSmall(to_inches(lateralSmallTol), settings.lateralSmallSettleTime);
+    ExitCondition lateralLarge(to_inches(lateralLargeTol), settings.lateralLargeSettleTime);
+    ExitCondition angularSmall(to_degrees(angularSmallTol), settings.angularSmallSettleTime);
+    ExitCondition angularLarge(to_degrees(angularLargeTol), settings.angularLargeSettleTime);
+
+    double maxLat = settings.maxVoltage * std::max(0.0, params.maxLateralSpeed.value());
     const double maxAng = settings.maxVoltage * std::max(0.0, params.maxAngularSpeed.value());
     const double minLat = settings.maxVoltage * std::abs(params.minLateralSpeed.value());
-    const double exitTolerance = std::max(1.0, to_inches(params.earlyExitRange));
-    // 0 is the LemLib sentinel for "use the drivetrain value". Facades substitute
-    // theirs before calling; a direct call falls back to the usual default.
     const double drift = params.horizontalDrift > 0.0 ? params.horizontalDrift : 2.0;
     const std::uint32_t start = pros::millis();
     std::uint32_t prevTick = start;
     double prevLateral = 0.0;
     bool close = false;
-    const double lateralSettleTol = std::max(exitTolerance, to_inches(settings.lateralSettleError));
-    const double angularSettleTol = to_degrees(settings.angularSettleError);
+    bool lateralSettled = false;
+    bool prevSameSide = false;
+    StallTracker stall;
+    stall.arm(start);
+    Pose lastPose = settings.poseGetter();
+    resetMotionProgress();
+    sampleMotionProgress(lastPose);
 
     while (!shouldExit(settings)) {
         if (pros::millis() - start > static_cast<std::uint32_t>(to_milliseconds(timeout))) {
@@ -53,28 +70,45 @@ void moveToPose(Pose target, Time timeout, MoveToPoseParams params, MotionSettin
         }
 
         const Pose pose = settings.poseGetter();
+        sampleMotionProgress(pose);
+        if (stall.update(settings, pros::millis(), pose, lastPose)) {
+            break;
+        }
+
         const double distTarget = to_inches(pose.distance(target));
         if (!close && distTarget < 7.5) {
             close = true;
+            // LemLib eases lateral power during the settling phase instead of keeping cruise speed.
+            maxLat = std::max(std::abs(prevLateral), 60.0 / 127.0 * settings.maxVoltage);
         }
-        const bool distanceSettled = distTarget <= lateralSettleTol;
+        if (lateralLarge.getExit() && lateralSmall.getExit()) {
+            lateralSettled = true;
+        }
+
+        const bool distanceSettled = distTarget <= to_inches(lateralSmallTol);
         const bool headingSettled =
             std::abs(headingErrorDeg(to_degrees(target.theta), to_degrees(pose.theta), TurnDirection::Auto)) <
-            angularSettleTol;
-        if (close && distanceSettled && headingSettled) {
+            to_degrees(angularSmallTol);
+        if (close && lateralSettled && angularLarge.getExit() && angularSmall.getExit()) {
+            break;
+        }
+        if (close && distanceSettled && headingSettled && minLat <= 0.0) {
             break;
         }
 
         const Pose carrot = close ? target : carrotPoint(target, params.lead, distTarget);
+        const Angle approach = target.theta;
+        const bool robotSide = crossedPerpendicular(pose, target, approach, params.earlyExitRange);
+        const bool carrotSide = crossedPerpendicular(carrot, target, approach, params.earlyExitRange);
+        const bool sameSide = robotSide == carrotSide;
+        if (!sameSide && prevSameSide && close && minLat > 0.0) {
+            break;
+        }
+        prevSameSide = sameSide;
+
         const double robotDeg = to_degrees(pose.theta) + (params.reversed ? 180.0 : 0.0);
         const double toCarrotDeg = to_degrees(pose.angleTo(carrot));
 
-        // Two-stage settle. While distance remains the nose has to point at the
-        // target point; only once the robot is on the point does it rotate onto
-        // the final heading. Aiming at the final heading during the approach made
-        // the lateral term measure forward progress along the *wrong* axis, so an
-        // axis-aligned target projected to a zero command and the motion sat still
-        // until the timeout.
         const bool rotatingInPlace = close && distanceSettled;
         const double aimDeg = rotatingInPlace ? to_degrees(target.theta) : toCarrotDeg;
         const double angularError = headingErrorDeg(aimDeg, robotDeg, TurnDirection::Auto);
@@ -91,13 +125,17 @@ void moveToPose(Pose target, Time timeout, MoveToPoseParams params, MotionSettin
             }
         }
 
+        lateralSmall.update(std::abs(lateralError), 10_ms);
+        lateralLarge.update(std::abs(lateralError), 10_ms);
+        angularSmall.update(std::abs(angularError), 10_ms);
+        angularLarge.update(std::abs(angularError), 10_ms);
+
         double lateralOut = std::clamp(lateral.calculate(lateralError) * settings.commandScale, -maxLat, maxLat);
         double angularOut = std::clamp(angular.calculate(angularError) * settings.commandScale, -maxAng, maxAng);
         if (!close) {
             lateralOut = std::clamp(lateralOut, prevLateral - settings.lateralSlew, prevLateral + settings.lateralSlew);
             const double curvature = lookaheadCurvature(pose, carrot);
             const double radius = 1.0 / std::max(std::abs(curvature), 1e-4);
-            // LemLib compares this to a 0-127 motor command. Scale into maxVoltage units.
             const double slip = std::sqrt(std::max(0.0, drift) * radius * 9.8);
             const double slipCap = std::min(maxLat, slip / 127.0 * maxLat);
             lateralOut = std::clamp(lateralOut, -slipCap, slipCap);
@@ -111,16 +149,17 @@ void moveToPose(Pose target, Time timeout, MoveToPoseParams params, MotionSettin
         } else if (params.reversed && !close) {
             lateralOut = std::min(lateralOut, 0.0);
         }
-        if (!params.reversed && lateralOut > 0.0 && lateralOut < minLat) {
-            lateralOut = minLat;
-        }
+        const double lateralSign = lateralError >= 0.0 ? 1.0 : -1.0;
+        lateralOut = clampMinLateral(lateralOut, minLat, lateralSign);
 
         prevLateral = lateralOut;
         driveScaled(*settings.leftMotors, *settings.rightMotors, lateralOut, angularOut, settings.maxVoltage);
         pros::Task::delay_until(&prevTick, 10);
     }
 
-    tankDrive(*settings.leftMotors, *settings.rightMotors, 0, 0);
+    if (minLat <= 0.0) {
+        tankDrive(*settings.leftMotors, *settings.rightMotors, 0, 0);
+    }
 }
 
 } // namespace autumn

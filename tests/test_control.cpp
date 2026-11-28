@@ -58,6 +58,12 @@ TEST_CASE("slew limiter steps by at most maxDelta") {
     CHECK(limiter.filter(3.0, 0.0) == doctest::Approx(3.0));
 }
 
+TEST_CASE("clampMinLateral preserves direction when PID output is near zero") {
+    CHECK(clampMinLateral(0.0, 6000.0, 1.0) == doctest::Approx(6000.0));
+    CHECK(clampMinLateral(0.0, 6000.0, -1.0) == doctest::Approx(-6000.0));
+    CHECK(clampMinLateral(3000.0, 6000.0, 1.0) == doctest::Approx(6000.0));
+}
+
 TEST_CASE("exit condition holds, then resets when the error leaves the band") {
     ExitCondition exit(1.0, 30_ms);
     CHECK_FALSE(exit.update(0.5, 10_ms));

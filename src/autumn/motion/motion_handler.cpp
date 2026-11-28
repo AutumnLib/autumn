@@ -14,10 +14,12 @@ void move(std::function<void()> motion) {
         pros::delay(5);
     }
     setMotionCancelled(false);
+    resetMotionProgress();
     motionTask = pros::Task([motion] {
         if (pros::Task::notify_take(true, 0) == 0) {
             motion();
         }
+        resetMotionProgress();
     });
 }
 
@@ -55,6 +57,18 @@ void waitUntilDistance(Length distance, std::function<Pose()> poseGetter) {
         if (inches(traveled) >= distance) {
             return;
         }
+        pros::delay(5);
+    }
+}
+
+void waitUntilTraveled(Length distance) {
+    while (isMoving() && motionPathDistance() < to_inches(distance)) {
+        pros::delay(5);
+    }
+}
+
+void waitUntilTurned(Angle amount) {
+    while (isMoving() && motionTurnDegrees() < to_degrees(amount)) {
         pros::delay(5);
     }
 }
